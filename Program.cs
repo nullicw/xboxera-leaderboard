@@ -43,7 +43,7 @@ namespace XboxeraLeaderboard
                 var newScores = input.Where(l => !string.IsNullOrWhiteSpace(l))
                                      .Skip(2) // headlines
                                      .Select(l => l.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                                     .Select(l => new { user = l[1], gamerTag = l[2], xuid = long.Parse(l[3]), lastScore = long.Parse(l[4]) })
+                                     .Select(l => new { user = l[1], gamerTag = l[2], xuid = long.Parse(l[3]), lastScore = long.Parse(l[5]) })
                                      .Select(g => new { g, newScore = ReadCurrentGamerScore(g.gamerTag, g.xuid).Result })
                                      .Select(n => new { n.g.user, n.g.gamerTag, n.g.xuid, n.g.lastScore, n.newScore, gains = Gains(n.g.lastScore, n.newScore) })
                                      .OrderByDescending(n => n.gains);
