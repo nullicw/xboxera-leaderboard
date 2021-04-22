@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "XboxeraLeaderboard": {
+      "commandName": "Project",
+      "commandLineArgs": "lastweek.txt thisweek.txt"
+    }
+  }
+}
