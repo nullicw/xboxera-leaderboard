@@ -1,10 +1,13 @@
 ﻿using Newtonsoft.Json.Linq;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+
+using static System.Math;
 
 namespace XboxeraLeaderboard
 {
@@ -13,28 +16,18 @@ namespace XboxeraLeaderboard
     /// </summary>
     internal record OpenXblSettings(string Id, string Value);
 
-    /// <summary>
-    /// Takes a | separated list of gamertags (with their xuid and last weeks gamerscore)
-    /// polls the open XBL api for the current gamerscore and outputs the (weekly) leaderboard
-    /// in a table format Discourse understands.
-    /// the programm writes 2 files:
-    /// - the first includes XUIDs and is to be used as the input for the next weekly run. it is
-    ///   also in a csv-format Excel understands.
-    /// - the second omits XUIDs and is Discourse table format. this file is optional, if its name
-    ///   is missing on the commandline the program writes the output to stdout.
-    /// </summary>
-    /// <remarks>
-    /// get xuids for gamertag: https://www.cxkes.me/xbox/xuid
-    /// how to use openXBL api https://xbl.io/getting-started
-    /// </remarks>
     public class Program
     {
-        private const char               CsvSeparator       = ';';
-        private static readonly string[] CsvHeader          = new string[] { "#;User;Gamertag;XUID;Initial GS;Final GS;Gains;Points" };
-        private static readonly string[] DiscourseHeader    = new string[] {
-                                                                 "|#|User|Gamertag|XUID|Initial GS|Final GS|Gains|Points|",
-                                                                 "| --- | --- | --- | --- | --- | --- | --- | --- |"
-                                                              };
+        private const char               CsvSeparator           = ';';
+        private static readonly string[] CsvHeader              = new string[] { "#;User;Gamertag;XUID;Initial GS;Final GS;Gains;Points;Initial Global Points;New Global Points" };
+        private static readonly string[] DiscourseWeeklyHeader  = new string[] {
+                                                                      "|#|User|Gamertag|Initial GS|Final GS|Gains|Points|",
+                                                                      "| --- | --- | --- | --- | --- | --- | --- |"
+                                                                  };
+        private static readonly string[] DiscourseGlobalHeader  = new string[] {
+                                                                      "|#|User|Gamertag|Points|",
+                                                                      "| --- | --- | --- | --- |"
+                                                                  };
 
         /// <summary>
         /// the API key for openXBL needed to call their REST services (a new can be generated on their
@@ -42,62 +35,89 @@ namespace XboxeraLeaderboard
         /// </summary>
         private const string OpenXBLKey = "koso444og0w8w8ckw8s44sgk0gkwwos4g8s";
 
+        /// <summary>
+        /// Takes a list of gamertags in csv format (with their xuid and last weeks gamerscore),
+        /// polls the open XBL api for their current gamerscore and outputs the (weekly) leaderboard
+        /// in a table format Discourse understands.
+        /// the programm writes 2 outputs:
+        /// - weekly and global ranking including XUIDs in csv format: this is to be used as the input for the next weekly run
+        /// - weekly and global ranking in Discourse table format on stdout or a file (optional)
+        /// </summary>
+        /// <remarks>
+        /// get xuids for gamertag: https://www.cxkes.me/xbox/xuid
+        /// how to use openXBL api https://xbl.io/getting-started
+        /// </remarks>
         public static async Task Main(string[] args)
         {
-            if(args.Length < 2 || args.Length > 3)
+            if (args.Length < 2 || args.Length > 3)
             {
                 Console.WriteLine("usage:");
-                Console.WriteLine("XboxeraLeaderboard.exe $lastweek-filename $nextweek-filename ($output-for-xboxera)");
+                Console.WriteLine("XboxeraLeaderboard.exe $lastweek-filename $thisweek-filename ($output-for-xboxera)");
                 Console.WriteLine("i.e. XboxeraLeaderboard.exe week31.csv week32.csv");
             }
             else
             {
-                var input = await File.ReadAllLinesAsync(args[0]);
-
                 // parsing input file
+
+                var input = await File.ReadAllLinesAsync(args[0]);
 
                 var users = input.Where(l => !string.IsNullOrWhiteSpace(l))
                                  .Skip(1) // headline
                                  .Select(l => l.Split(CsvSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                                 .Select(l => new { user = l[1], gamerTag = l[2], xuid = long.Parse(l[3]), lastScore = long.Parse(l[5]) });
+                                 .Select(l => new { user = l[1], gamerTag = l[2], xuid = long.Parse(l[3]), lastScore = int.Parse(l[5]), lastPoints = int.Parse(l[9]) });
 
-                // getting current gamerscores from xbox
+                // getting current gamerscores from xbox and calculate gains
 
-                var newScores = users.Select(g => new { g, newScore = ReadCurrentGamerScore(g.gamerTag, g.xuid).Result })
-                                     .Select(n => new { n.g.user, n.g.gamerTag, n.g.xuid, n.g.lastScore, n.newScore, gains = Gains(n.g.lastScore, n.newScore) })
-                                     .OrderByDescending(n => n.gains);
+                var newScores = users.Select(u => new { u, newScore = ReadCurrentGamerScore(u.gamerTag, u.xuid).Result })
+                                     .Select(s => new { s.u, s.newScore, gains = Gains(s.u.lastScore, s.newScore) });
 
-                // ranking (users with same gains have to be ranked the same!)
+                // weekly ranking (users with same gains have to be ranked the same!)
+                // and directly add points to total leaderboard points
 
-                var ranked = newScores.OrderByDescending(s => s.gains)
-                                      .Select((s, i) => new { rank = i + 1, points = WeeklyPoints(i), s.gains, s.user, s.gamerTag, s.xuid, s.lastScore, s.newScore });
+                var weeklyRanking = Rank(newScores, s => s.gains, r => WeeklyPoints(r)).Select(r => new {
+                    rank = r.Item2,
+                    r.Item1.u,
+                    r.Item1.newScore,
+                    r.Item1.gains,
+                    points = r.Item3,
+                    totalPoints = r.Item1.u.lastPoints + r.Item3
+                }).ToArray();
 
-                var grouped = ranked.GroupBy(s => s.gains)
-                                    .OrderByDescending(g => g.Key)
-                                    .Select((s, i) => new { grouprank = s.Min(ss => ss.rank), grouppoints = s.Max(ss => ss.points), group = s.Select(i => i) })
-                                    .SelectMany(g => g.group.Select(u => new { rank = g.grouprank, u, points = g.grouppoints }))
-                                    .ToArray();
+                // global ranking by new total leaderboard points
+
+                var globalRanking = Rank(weeklyRanking, s => s.totalPoints, r => r).Select(r => new {
+                    rank = r.Item2,
+                    r.Item1.u,
+                    r.Item1.totalPoints
+                }).ToArray();
 
                 // writing output
                 // 1. first one in input csv format for the scanner itself or for excel 
 
-                var toNextWeek = grouped.Select(g => string.Join(CsvSeparator,
-                                                                 g.rank, g.u.user, g.u.gamerTag, g.u.xuid, g.u.lastScore, g.u.newScore, g.u.gains, g.points));
-                await File.WriteAllLinesAsync(args[1], CsvHeader.Concat(toNextWeek));
+                var thisWeek = weeklyRanking.Select(w => string.Join(CsvSeparator,
+                                                                     w.rank, w.u.user, w.u.gamerTag, w.u.xuid, w.u.lastScore, w.newScore, w.gains, w.points, w.u.lastPoints, w.totalPoints));
+                await File.WriteAllLinesAsync(args[1], CsvHeader.Concat(thisWeek));
 
                 // 2. second one in Discourse table format for copy/pasting it to a forum post
+                //    two tables are written here
 
-                var toDiscourse = grouped.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@': ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.u.newScore}|{g.u.gains}|{g.points}|");
+                var toDiscourseWeekly = weeklyRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.newScore}|{g.gains}|{g.points}|");
+                var toDiscourseGlobal = globalRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.totalPoints}|");
+
+                var toDiscourse = DiscourseWeeklyHeader.Concat(toDiscourseWeekly)
+                                                       .Concat(new[] { "\n" })
+                                                       .Concat(DiscourseGlobalHeader)
+                                                       .Concat(toDiscourseGlobal);
 
                 if(args.Length == 3)
                 {
-                    await File.WriteAllLinesAsync(args[2], DiscourseHeader.Concat(toDiscourse));
+                    await File.WriteAllLinesAsync(args[2], toDiscourse);
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine();
-                    foreach(var line in DiscourseHeader.Concat(toDiscourse))
+                    foreach(var line in toDiscourse)
                     {
                         Console.WriteLine(line);
                     }
@@ -105,14 +125,30 @@ namespace XboxeraLeaderboard
             }
         }
 
-        private static long Gains(long gamerscoreBefore, long gamerscoreNow) => Math.Max(0, gamerscoreNow - gamerscoreBefore);
+        /// <summary>
+        /// ranks a sequence and scores it by rank
+        /// </summary>
+        private static IEnumerable<Tuple<T, int, int>> Rank<T>(IEnumerable<T> toRank, Func<T, int> rankBy, Func<int, int> scoring)
+        {
+            var ranked = toRank.OrderByDescending(rankBy)
+                               .Select((s, i) => new { rank = i + 1, points = scoring(i), s });
 
-        private static int WeeklyPoints(int rank) => Math.Max(0, 10 - rank);
+            var grouped = ranked.GroupBy(r => rankBy(r.s))
+                                .OrderByDescending(g => g.Key)
+                                .Select((g, i) => new { grouprank = g.Min(r => r.rank), grouppoints = g.Max(r => r.points), group = g.Select(i => i) })
+                                .SelectMany(g => g.group.Select(s => new Tuple<T, int, int>(s.s, g.grouprank, g.grouppoints)));
+
+            return grouped;
+        }
+
+        private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Max(0, gamerscoreNow - gamerscoreBefore);
+
+        private static int WeeklyPoints(int rank) => Max(0, 10 - rank);
 
         /// <summary>
         /// calls open XBL api to get the gamerscore for a Xbox User Id (XUID)
         /// </summary>
-        private static async Task<long> ReadCurrentGamerScore(string gamerTag, long xuid)
+        private static async Task<int> ReadCurrentGamerScore(string gamerTag, long xuid)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"calling open XBL api for {gamerTag} .... ");
@@ -160,7 +196,7 @@ namespace XboxeraLeaderboard
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("OK");
 
-                    return long.Parse(gamerscoreSettings.Value);
+                    return int.Parse(gamerscoreSettings.Value);
                 }
                 else
                 {
