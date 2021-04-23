@@ -1,1 +1,4 @@
 theme: jekyll-theme-slate
+title: Generate XboxEra leaderboard
+description: tools for generating the weekly and monthly leaderboards on XboxEra
+show_downloads: "true"
