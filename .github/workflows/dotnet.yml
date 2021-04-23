@@ -23,3 +23,6 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
+    - name: Publish
+      run: dotnet publish --configuration Release --framework net5.0 --output ./publish --runtime win-x86 --self-contained true -p:PublishTrimmed=true -p:PublishSingleFile=true
+
