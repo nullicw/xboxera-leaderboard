@@ -4,6 +4,13 @@ gamerscore scanner for XboxEra's achievement leaderboard
 
 see https://www.trueachievements.com/leaderboard.aspx?leaderboardid=8223
 
+## How do ranking and points work?
+
+The ten best achievement hunters in the week will be awarded points based on their position. Whoever earns the most gamerscore during the week will gain 10 points, the second place will gain 9 points, and so on. Then the Ranking will reset again and a new week will begin. If two or more users have the same gamerscore gains in one week they get the same place and points.
+
+The tracking will happen between 00:01AM on Monday and 11:59PM on Sunday UTC.
+
+The ten best hunters in the month will also be awarded points based on their position. Whoever earns the most gamerscore during the month will gain 100 points, the second place will gain 90 points, and so on. Then the ranking will reset again and a new month will begin. If two or more users have the same gamerscore gains in the last week they get the same place and points.
 
 ## Usage
 
