@@ -64,32 +64,32 @@ namespace XboxeraLeaderboard
                 var users = input.Where(l => !string.IsNullOrWhiteSpace(l))
                                  .Skip(1) // headline
                                  .Select(l => l.Split(CsvSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                                 .Select(l => new { user = l[1], gamerTag = l[2], xuid = long.Parse(l[3]), lastScore = int.Parse(l[5]), lastPoints = int.Parse(l[9]) });
+                                 .Select(l => (user: l[1], gamerTag: l[2], xuid: long.Parse(l[3]), lastScore: int.Parse(l[5]), lastPoints: int.Parse(l[9])));
 
                 // getting current gamerscores from xbox and calculate gains
 
-                var newScores = users.Select(u => new { u, newScore = ReadCurrentGamerScore(u.gamerTag, u.xuid).Result })
-                                     .Select(s => new { s.u, s.newScore, gains = Gains(s.u.lastScore, s.newScore) });
+                var newScores = users.Select(u => (u, newScore: ReadCurrentGamerScore(u.gamerTag, u.xuid).Result))
+                                     .Select(s => (s.u, s.newScore, gains: Gains(s.u.lastScore, s.newScore)));
 
                 // weekly ranking (users with same gains have to be ranked the same!)
                 // and directly add points to total leaderboard points
 
-                var weeklyRanking = Rank(newScores, s => s.gains, r => WeeklyPoints(r)).Select(r => new {
-                    rank = r.Item2,
-                    r.Item1.u,
-                    r.Item1.newScore,
-                    r.Item1.gains,
-                    points = r.Item3,
-                    totalPoints = r.Item1.u.lastPoints + r.Item3
-                }).ToArray();
+                var weeklyRanking = Rank(newScores, s => s.gains, r => WeeklyPoints(r)).Select(r => (
+                    r.rank,
+                    r.score.u,
+                    r.score.newScore,
+                    r.score.gains,
+                    r.points,
+                    totalPoints: r.score.u.lastPoints + r.points
+                )).ToArray();
 
                 // global ranking by new total leaderboard points
 
-                var globalRanking = Rank(weeklyRanking, s => s.totalPoints, r => r).Select(r => new {
-                    rank = r.Item2,
-                    r.Item1.u,
-                    r.Item1.totalPoints
-                }).ToArray();
+                var globalRanking = Rank(weeklyRanking, s => s.totalPoints, r => r).Select(r => (
+                    r.rank,
+                    r.score.u,
+                    r.score.totalPoints
+                )).ToArray();
 
                 // writing output
                 // 1. first one in input csv format for the scanner itself or for excel 
@@ -128,15 +128,15 @@ namespace XboxeraLeaderboard
         /// <summary>
         /// ranks a sequence and scores it by rank
         /// </summary>
-        private static IEnumerable<Tuple<T, int, int>> Rank<T>(IEnumerable<T> toRank, Func<T, int> rankBy, Func<int, int> scoring)
+        private static IEnumerable<(T score, int rank, int points)> Rank<T>(IEnumerable<T> toRank, Func<T, int> rankBy, Func<int, int> scoring)
         {
             var ranked = toRank.OrderByDescending(rankBy)
-                               .Select((s, i) => new { rank = i + 1, points = scoring(i), s });
+                               .Select((s, i) => (rank: i + 1, points: scoring(i), s));
 
             var grouped = ranked.GroupBy(r => rankBy(r.s))
                                 .OrderByDescending(g => g.Key)
-                                .Select((g, i) => new { grouprank = g.Min(r => r.rank), grouppoints = g.Max(r => r.points), group = g.Select(i => i) })
-                                .SelectMany(g => g.group.Select(s => new Tuple<T, int, int>(s.s, g.grouprank, g.grouppoints)));
+                                .Select((g, i) => (grouprank: g.Min(r => r.rank), grouppoints: g.Max(r => r.points), group: g.Select(i => i)))
+                                .SelectMany(g => g.group.Select(s => (s.s, g.grouprank, g.grouppoints)));
 
             return grouped;
         }
