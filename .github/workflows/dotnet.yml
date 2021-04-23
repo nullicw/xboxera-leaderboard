@@ -30,3 +30,11 @@ jobs:
       with: 
         name: xboxera-leaderboard-win-x86
         path: ./publish
+    - name: Add release
+      uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "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"
+          automatic_release_tag: "latest"
+          prerelease: false
+          title: "Latest Build"
+          files: xboxera-leaderboard-win-x86.zip
