@@ -37,4 +37,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: false
         title: "Latest Build"
-        files: xboxera-leaderboard-win-x86.zip
+        files: xboxera-leaderboard-win-x86
