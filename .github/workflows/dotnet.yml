@@ -25,11 +25,15 @@ jobs:
       run: dotnet build --no-restore
     - name: Publish win-x86
       run: dotnet publish --configuration Release --framework net5.0 --output ./publish --runtime win-x86 --self-contained true -p:PublishTrimmed=true -p:PublishSingleFile=true
-    - name: Zip and upload artifacts
+    - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with: 
         name: xboxera-leaderboard-win-x86
         path: ./publish
+    - name: Zip
+      uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r xboxera-leaderboard-win-x86.zip ./publish
     - name: Add release
       uses: marvinpinto/action-automatic-releases@latest
       with:
@@ -37,4 +41,4 @@ jobs:
         automatic_release_tag: "latest"
         prerelease: false
         title: "Latest Build"
-        files: xboxera-leaderboard-win-x86
+        files: xboxera-leaderboard-win-x86.zip
