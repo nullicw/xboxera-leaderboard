@@ -1,12 +1,9 @@
-name: .NET
+name: .NET publish
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-    branches: [ main ]
+    tags:
+      - '*'
 
 jobs:
   build:
