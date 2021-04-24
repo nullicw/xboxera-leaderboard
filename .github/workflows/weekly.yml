@@ -1,0 +1,26 @@
+name: Generate weekly leaderboard
+
+on:
+  schedule:
+    # every week 06:20 AM UTC on Monday (https://crontab.guru/#20_6_*_*_1)
+    - cron:  '20 6 * * 1'
+  workflow_dispatch:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Generate weekly leaderboard
+      run: dotnet run --configuration XboxeraLeaderboard.csproj weekly ./doc/output/
