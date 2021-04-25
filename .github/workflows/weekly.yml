@@ -14,6 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        ref: main
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
@@ -23,4 +25,9 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
     - name: Generate weekly leaderboard
-      run: dotnet run --configuration XboxeraLeaderboard.csproj weekly ./doc/output/
+      run: dotnet run --configuration XboxeraLeaderboard.csproj weekly doc/output/
+    - name: Checkin new stats
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: weekly run
+        file_pattern: doc/*.*
