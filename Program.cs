@@ -19,6 +19,8 @@ namespace XboxeraLeaderboard
     public class Program
     {
         private const char               CsvSeparator           = ';';
+        private const string             StatsFilename          = "lastscanstats.txt";
+
         private static readonly string[] CsvHeader              = new string[] { "#;User;Gamertag;XUID;Initial GS;Final GS;Gains;Points;Initial Global Points;New Global Points" };
         private static readonly string[] DiscourseWeeklyHeader  = new string[] {
                                                                       "|#|User|Gamertag|Initial GS|Final GS|Gains|Points|",
@@ -39,9 +41,17 @@ namespace XboxeraLeaderboard
         /// Takes a list of gamertags in csv format (with their xuid and last weeks gamerscore),
         /// polls the open XBL api for their current gamerscore and outputs the (weekly) leaderboard
         /// in a table format Discourse understands.
-        /// the programm writes 2 outputs:
-        /// - weekly and global ranking including XUIDs in csv format: this is to be used as the input for the next weekly run
-        /// - weekly and global ranking in Discourse table format on stdout or a file (optional)
+        /// 
+        /// operates in 3 different modes:
+        /// - if the caller provides 2 csv-files the programm reads the first csv,
+        ///   computes the weekly diff and writes it to the second specified csv file. additionaly
+        ///   the program writes the weekly and global ranking in Discourse table format to stdout
+        /// - if the caller specifies option --weekly the programm scans the path for the last
+        ///   weekly file, calculates the weekly diff and writes the new weekly and global scores
+        ///   to a new file in the path. it also writes a second text file in Discourse format.
+        /// - if the caller specifies option --monthly the programm scans the path for the last
+        ///   monthly file, calculates the monthly diff and writes the new monthly and global scores
+        ///   to a new file in the path. it also writes a second text file in Discourse format.
         /// </summary>
         /// <remarks>
         /// get xuids for gamertag: https://www.cxkes.me/xbox/xuid
@@ -49,78 +59,155 @@ namespace XboxeraLeaderboard
         /// </remarks>
         public static async Task Main(string[] args)
         {
-            if (args.Length < 2 || args.Length > 3)
+            if(args.Length != 2)
             {
                 Console.WriteLine("usage:");
-                Console.WriteLine("XboxeraLeaderboard.exe $lastweek-filename $thisweek-filename ($output-for-xboxera)");
+                Console.WriteLine("XboxeraLeaderboard.exe $lastweek-filename $thisweek-filename");
+                Console.WriteLine("XboxeraLeaderboard.exe --weekly|monthly $pages-path");
+                Console.WriteLine("XboxeraLeaderboard.exe --monthly $pages-path");
                 Console.WriteLine("i.e. XboxeraLeaderboard.exe week31.csv week32.csv");
+                Console.WriteLine("  or XboxeraLeaderboard.exe --weekly ./docs/scores/");
             }
             else
             {
-                // parsing input file
+                // directory structure: ./doc/scoring/lastscanstats.txt
+                //                                   /YYYY-MM/week1.csv
+                //                                            week1.txt
+                //                                            week2.csv
+                //                                            week2.txt
+                //                                            ...
 
-                var input = await File.ReadAllLinesAsync(args[0]);
-
-                var users = input.Where(l => !string.IsNullOrWhiteSpace(l))
-                                 .Skip(1) // headline
-                                 .Select(l => l.Split(CsvSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                                 .Select(l => (user: l[1], gamerTag: l[2], xuid: long.Parse(l[3]), lastScore: int.Parse(l[5]), lastPoints: int.Parse(l[9])));
-
-                // getting current gamerscores from xbox and calculate gains
-
-                var newScores = users.Select(u => (u, newScore: ReadCurrentGamerScore(u.gamerTag, u.xuid).Result))
-                                     .Select(s => (s.u, s.newScore, gains: Gains(s.u.lastScore, s.newScore)));
-
-                // weekly ranking (users with same gains have to be ranked the same!)
-                // and directly add points to total leaderboard points
-
-                var weeklyRanking = Rank(newScores, s => s.gains, r => WeeklyPoints(r)).Select(r => (
-                    r.rank,
-                    r.score.u,
-                    r.score.newScore,
-                    r.score.gains,
-                    r.points,
-                    totalPoints: r.score.u.lastPoints + r.points
-                )).ToArray();
-
-                // global ranking by new total leaderboard points
-
-                var globalRanking = Rank(weeklyRanking, s => s.totalPoints, r => r).Select(r => (
-                    r.rank,
-                    r.score.u,
-                    r.score.totalPoints
-                )).ToArray();
-
-                // writing output
-                // 1. first one in input csv format for the scanner itself or for excel 
-
-                var thisWeek = weeklyRanking.Select(w => string.Join(CsvSeparator,
-                                                                     w.rank, w.u.user, w.u.gamerTag, w.u.xuid, w.u.lastScore, w.newScore, w.gains, w.points, w.u.lastPoints, w.totalPoints));
-                await File.WriteAllLinesAsync(args[1], CsvHeader.Concat(thisWeek));
-
-                // 2. second one in Discourse table format for copy/pasting it to a forum post
-                //    two tables are written here
-
-                var toDiscourseWeekly = weeklyRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.newScore}|{g.gains}|{g.points}|");
-                var toDiscourseGlobal = globalRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.totalPoints}|");
-
-                var toDiscourse = DiscourseWeeklyHeader.Concat(toDiscourseWeekly)
-                                                       .Concat(new[] { "\n" })
-                                                       .Concat(DiscourseGlobalHeader)
-                                                       .Concat(toDiscourseGlobal);
-
-                if(args.Length == 3)
+                if (args[0] == "--weekly")
                 {
-                    await File.WriteAllLinesAsync(args[2], toDiscourse);
+                    var rootScoringDir = Path.Combine("../../../", args[1]);
+
+                    var stats  = await File.ReadAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename));
+                    var weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
+
+                    var dirForLatestMonth  = LatestDir(rootScoringDir);
+                    var lastWeekCsvFile    = Path.Combine(dirForLatestMonth, $"week{weekNr}.csv");
+                    if(!File.Exists(lastWeekCsvFile))
+                    {
+                        lastWeekCsvFile = Path.Combine(LatestDir(args[1], 1), $"week{weekNr}.csv");
+                    }
+
+                    weekNr++;
+                    await Weekly(lastWeekCsvFile,
+                                 Path.Combine(dirForLatestMonth, $"week{weekNr}.csv"),
+                                 Path.Combine(dirForLatestMonth, $"week{weekNr}.txt"));
+
+                    await WriteNewStatsFile(rootScoringDir, weekNr);
+                    await WriteNewGithubPage(rootScoringDir, dirForLatestMonth, weekNr);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine();
-                    foreach(var line in toDiscourse)
-                    {
-                        Console.WriteLine(line);
-                    }
+                    await Weekly(args[0], args[1]);
+                }
+            }
+        }
+
+        private static string LatestDir(string path, int skip = 0) => Directory.EnumerateDirectories(path)
+                                                                               .OrderByDescending(s => s)
+                                                                               .Skip(skip)
+                                                                               .First();
+
+        private static async Task WriteNewStatsFile(string rootScoringDir, int weekNumber)
+        {
+            await File.WriteAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename),
+                                          new string[] {
+                                              $"week={weekNumber}",
+                                              $"date={DateTime.UtcNow:yyyy-MM-dd-HH-mm-ss} (UTC)"
+                                          });
+        }
+
+        private static async Task WriteNewGithubPage(string rootScoringDir, string currentDir, int weekNumber)
+        {
+            var excelFileLinks = Directory.EnumerateFiles(currentDir, "*.csv")
+                                          .OrderBy(s => s)
+                                          .Select(s => $"[{Path.GetFileName(s)}]({Path.GetDirectoryName(Path.GetRelativePath(currentDir, s))}/{Path.GetFileName(s)})");
+            await File.WriteAllLinesAsync(Path.Combine(rootScoringDir, $"{DateTime.UtcNow:yyyy-MM-dd}-scan.md"),
+                                          new string[] {
+                                              "---",
+                                              "title: \"Result of gamerscore scan\" ",
+                                              $"date: {DateTime.UtcNow:yyyy-MM-dd}",
+                                              "layout: post",
+                                              "category: weekly",
+                                              "---",
+                                              "",
+                                              "# Excel-Links",
+                                              $"[week{weekNumber}.csv]({currentDir}/week{weekNumber}.csv)",
+                                              "# Discourse",
+                                              "{% include " + $"{currentDir}/week{weekNumber}.txt" + "%}",
+                                          });
+        }
+
+        private static async Task Weekly(string lastWeekFilename,
+                                         string nextWeekFilename,
+                                         string discordFilename = null)
+        {
+            // parsing input file
+
+            var input = await File.ReadAllLinesAsync(lastWeekFilename);
+
+            var users = input.Where(l => !string.IsNullOrWhiteSpace(l))
+                             .Skip(1) // headline
+                             .Select(l => l.Split(CsvSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                             .Select(l => (user: l[1], gamerTag: l[2], xuid: long.Parse(l[3]), lastScore: int.Parse(l[5]), lastPoints: int.Parse(l[9])));
+
+            // getting current gamerscores from xbox and calculate gains
+
+            var newScores = users.Select(u => (u, newScore: ReadCurrentGamerScore(u.gamerTag, u.xuid).Result))
+                                 .Select(s => (s.u, s.newScore, gains: Gains(s.u.lastScore, s.newScore)));
+
+            // weekly ranking (users with same gains have to be ranked the same!)
+            // and directly add points to total leaderboard points
+
+            var weeklyRanking = Rank(newScores, s => s.gains, r => WeeklyPoints(r)).Select(r => (
+                r.rank,
+                r.score.u,
+                r.score.newScore,
+                r.score.gains,
+                r.points,
+                totalPoints: r.score.u.lastPoints + r.points
+            )).ToArray();
+
+            // global ranking by new total leaderboard points
+
+            var globalRanking = Rank(weeklyRanking, s => s.totalPoints, r => r).Select(r => (
+                r.rank,
+                r.score.u,
+                r.score.totalPoints
+            )).ToArray();
+
+            // writing output
+            // 1. first one in input csv format for the scanner itself or for excel 
+
+            var thisWeek = weeklyRanking.Select(w => string.Join(CsvSeparator,
+                                                                    w.rank, w.u.user, w.u.gamerTag, w.u.xuid, w.u.lastScore, w.newScore, w.gains, w.points, w.u.lastPoints, w.totalPoints));
+            await File.WriteAllLinesAsync(nextWeekFilename, CsvHeader.Concat(thisWeek));
+
+            // 2. second one in Discourse table format for copy/pasting it to a forum post
+            //    two tables are written here
+
+            var toDiscourseWeekly = weeklyRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.newScore}|{g.gains}|{g.points}|");
+            var toDiscourseGlobal = globalRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.totalPoints}|");
+
+            var toDiscourse = DiscourseWeeklyHeader.Concat(toDiscourseWeekly)
+                                                   .Concat(new[] { "\n" })
+                                                   .Concat(DiscourseGlobalHeader)
+                                                   .Concat(toDiscourseGlobal);
+
+            if(discordFilename != null)
+            {
+                await File.WriteAllLinesAsync(discordFilename, toDiscourse);
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine();
+                foreach(var line in toDiscourse)
+                {
+                    Console.WriteLine(line);
                 }
             }
         }
@@ -191,7 +278,7 @@ namespace XboxeraLeaderboard
                                                      .First(s => s.Id == "Gamerscore");
 
                     // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    await Task.Delay(5000);
+                    await Task.Delay(2500);
 
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("OK");
