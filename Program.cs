@@ -86,9 +86,9 @@ namespace XboxeraLeaderboard
                     {
                         stats = await File.ReadAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename));
                     }
-                    catch (Exception exc)
+                    catch(Exception)
                     {
-                        PrintDir(rootScoringDir);
+                        PrintDir(Directory.GetCurrentDirectory());// rootScoringDir);
                     }
                     var weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
 
