@@ -2,7 +2,7 @@
   "profiles": {
     "XboxeraLeaderboard": {
       "commandName": "Project",
-      "commandLineArgs": " --weekly ./docs/scores/"
+      "commandLineArgs": " --weekly ../../../docs/scores/"
     }
   }
 }

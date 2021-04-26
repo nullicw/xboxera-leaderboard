@@ -79,7 +79,7 @@ namespace XboxeraLeaderboard
 
                 if (args[0] == "--weekly")
                 {
-                    var rootScoringDir = Path.Combine("../../../", args[1]);
+                    var rootScoringDir = Path.GetFullPath(args[1]);
 
                     var stats  = await File.ReadAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename));
                     var weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);

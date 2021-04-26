@@ -23,11 +23,11 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --configuration Release --no-restore
     - name: Generate weekly leaderboard
-      run: dotnet run --configuration XboxeraLeaderboard.csproj weekly doc/output/
-    - name: Checkin new stats
-      uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: weekly run
-        file_pattern: doc/*.*
+      run: dotnet run --configuration Release --weekly ./doc/output/
+    # - name: Checkin new stats
+      # uses: stefanzweifel/git-auto-commit-action@v4
+      # with:
+        # commit_message: weekly run
+        # file_pattern: doc/*.*
