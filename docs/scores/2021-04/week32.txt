@@ -1,0 +1,84 @@
+|#|User|Gamertag|Initial GS|Final GS|Gains|Points|
+| --- | --- | --- | --- | --- | --- | --- |
+|1.|@Shadowgasm|Shadowgasm|286715|289835|3120|10|
+|2.|@brunopcosta1|brunopcosta1|217150|219790|2640|9|
+|3.|@CRZYSPZ|CRZYSPZ|397360|399715|2355|8|
+|4.|@Plagueborne|The Wicked Soul|747452|749752|2300|7|
+|5.|@MasterLeePhD|Master Lee PhD|308449|309659|1210|6|
+|6.|@CallMeCraig|matsze|208760|209839|1079|5|
+|7.|@PhantomFox|PhantomFox75-460|52372|53427|1055|4|
+|8.|@SheepDip|Ryuukishi634|360235|361150|915|3|
+|9.|@FairyEmpire|baboy1337|378975|379855|880|2|
+|10.|@Akosii|Akosii|327040|327825|785|1|
+|10.|@Scottish_Sin|Scottish Sin|528125|528910|785|1|
+|12.| xJavontax|xJavontax|40364|40959|595|0|
+|13.| Mort|Mortaigne|145757|146267|510|0|
+|14.| TheSlickTony|TheSlickTony|102652|103153|501|0|
+|15.| Knottian|Knottian|208290|208780|490|0|
+|16.| KARMAgoesHARD|KARMAgoesHARD|609949|610429|480|0|
+|17.| BeardoN7x|BeardoA7x|87800|88190|390|0|
+|18.| FunkyOne|Sir Funkified|232833|233218|385|0|
+|19.| BadMoodJones|Junglee91|93386|93731|345|0|
+|20.| BananaBox39|MaidenLOKO|183525|183860|335|0|
+|21.| Running_Riot|BoutTreeFidy-208|36225|36540|315|0|
+|22.| n0tjack|n0tjack|163852|164147|295|0|
+|23.| MMarfil|MMarfil|97329|97609|280|0|
+|23.| APOPHIS1989|APOPHIS1989|294923|295203|280|0|
+|25.| dscharles|dscharles|56015|56195|180|0|
+|26.| Xumbrega|ctZz1|150985|151115|130|0|
+|27.| MrZweistein|MrZweistein|129110|129210|100|0|
+|28.| dfunktjester|dFunkt jestEr|106687|106747|60|0|
+|28.| supercommodore|supercommodore|19547|19607|60|0|
+|30.| TheSego|The Sego|147623|147673|50|0|
+|30.| OneBadMutha|OneBadMutha|47648|47698|50|0|
+|32.| DeusJabu|DeusJabu|159239|159274|35|0|
+|33.| Foorbits|Foorbits|48308|48338|30|0|
+|34.| Chyld989|Chyld989|361405|361425|20|0|
+|34.| Bugalugs214|bugalugs214|125660|125680|20|0|
+|36.| BrigadiersBlue|Brigadiers Blue|54038|54053|15|0|
+|36.| low187|ShadowArceus5|227995|228010|15|0|
+|38.| Sikamikanico|Sikamikanico|124806|124806|0|0|
+|38.| Bluehawk357|BlueHawk357|111483|111483|0|0|
+
+
+|#|User|Gamertag|Points|
+| --- | --- | --- | --- |
+|1.|@Plagueborne|The Wicked Soul|838|
+|2.|@Shadowgasm|Shadowgasm|835|
+|3.|@KARMAgoesHARD|KARMAgoesHARD|799|
+|4.|@FairyEmpire|baboy1337|766|
+|5.|@brunopcosta1|brunopcosta1|765|
+|6.|@Chyld989|Chyld989|463|
+|7.|@MasterLeePhD|Master Lee PhD|424|
+|8.|@Akosii|Akosii|338|
+|9.|@CRZYSPZ|CRZYSPZ|326|
+|10.|@BeardoN7x|BeardoA7x|324|
+|11.| BadMoodJones|Junglee91|318|
+|12.| CallMeCraig|matsze|312|
+|13.| Scottish_Sin|Scottish Sin|294|
+|14.| Mort|Mortaigne|257|
+|15.| n0tjack|n0tjack|227|
+|16.| SheepDip|Ryuukishi634|201|
+|17.| low187|ShadowArceus5|168|
+|18.| MMarfil|MMarfil|116|
+|19.| PhantomFox|PhantomFox75-460|115|
+|20.| Bluehawk357|BlueHawk357|54|
+|21.| xJavontax|xJavontax|17|
+|22.| dscharles|dscharles|14|
+|23.| TheSlickTony|TheSlickTony|8|
+|24.| dfunktjester|dFunkt jestEr|4|
+|24.| supercommodore|supercommodore|4|
+|26.| Sikamikanico|Sikamikanico|3|
+|27.| FunkyOne|Sir Funkified|2|
+|27.| Foorbits|Foorbits|2|
+|29.| Knottian|Knottian|0|
+|29.| BananaBox39|MaidenLOKO|0|
+|29.| Running_Riot|BoutTreeFidy-208|0|
+|29.| APOPHIS1989|APOPHIS1989|0|
+|29.| Xumbrega|ctZz1|0|
+|29.| MrZweistein|MrZweistein|0|
+|29.| TheSego|The Sego|0|
+|29.| OneBadMutha|OneBadMutha|0|
+|29.| DeusJabu|DeusJabu|0|
+|29.| Bugalugs214|bugalugs214|0|
+|29.| BrigadiersBlue|Brigadiers Blue|0|
