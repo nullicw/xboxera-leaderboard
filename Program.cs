@@ -189,8 +189,8 @@ namespace XboxeraLeaderboard
             // 2. second one in Discourse table format for copy/pasting it to a forum post
             //    two tables are written here
 
-            var toDiscourseWeekly = weeklyRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.newScore}|{g.gains}|{g.points}|");
-            var toDiscourseGlobal = globalRanking.Select(g => $"|{g.rank}.|{(g.rank < 11 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.totalPoints}|");
+            var toDiscourseWeekly = weeklyRanking.Select((g, i) => $"|{g.rank}.|{(i < 10 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.newScore}|{g.gains}|{g.points}|");
+            var toDiscourseGlobal = globalRanking.Select(g => $"|{g.rank}.|{g.u.user}|{g.u.gamerTag}|{g.totalPoints}|");
 
             var toDiscourse = DiscourseWeeklyHeader.Concat(toDiscourseWeekly)
                                                    .Concat(new[] { "\n" })
