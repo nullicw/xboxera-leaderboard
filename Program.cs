@@ -81,15 +81,7 @@ namespace XboxeraLeaderboard
                 {
                     var rootScoringDir = Path.GetFullPath(args[1]);
 
-                    string[] stats = null;
-                    try
-                    {
-                        stats = await File.ReadAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename));
-                    }
-                    catch(Exception)
-                    {
-                        PrintDir(Directory.GetCurrentDirectory());// rootScoringDir);
-                    }
+                    var stats  = await File.ReadAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename));
                     var weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
 
                     var dirForLatestMonth  = LatestDir(rootScoringDir);
@@ -111,19 +103,6 @@ namespace XboxeraLeaderboard
                 {
                     await Weekly(args[0], args[1]);
                 }
-            }
-        }
-
-        private static void PrintDir(string dir)
-        {
-            Console.WriteLine(dir);
-            foreach(var file in Directory.GetFiles(dir))
-            {
-                Console.WriteLine(file);
-            }
-            foreach(var subdir in Directory.GetDirectories(dir))
-            {
-                PrintDir(subdir);
             }
         }
 

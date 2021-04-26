@@ -25,7 +25,7 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Generate weekly leaderboard
-      run: dotnet run --configuration Release --weekly ./doc/output/
+      run: dotnet run --configuration Release --weekly ./docs/scores/
     # - name: Checkin new stats
       # uses: stefanzweifel/git-auto-commit-action@v4
       # with:
