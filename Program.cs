@@ -128,18 +128,19 @@ namespace XboxeraLeaderboard
         private static async Task WriteNewGithubPage(string rootScoringDir, string currentDir, int weekNumber, string[] discourse)
         {
             await File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootScoringDir).FullName,
-                                          "_posts",
-                                          $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
+                                                       "_posts",
+                                                       $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
                                           new string[] {
                                               "---",
                                               $"title: \"Week {weekNumber}\" ",
                                               $"date: {DateTime.UtcNow:yyyy-MM-dd}",
                                               "layout: post",
-                                              "category: weekly",
+                                              "tags: weekly",
                                               "---",
-                                              "",
-                                              "# Excel-Links",
-                                              "{% link scores/week" + weekNumber + ".csv %}",
+                                              string.Empty,
+                                              "# Excel",
+                                              $"[Week {weekNumber}]({{{{ site.github.url }}}}/scores/week{weekNumber}.csv)",
+                                              string.Empty,
                                               "# Discourse",
                                               "```",
                                           }.Concat(discourse)
