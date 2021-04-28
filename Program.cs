@@ -139,7 +139,7 @@ namespace XboxeraLeaderboard
                                               "---",
                                               string.Empty,
                                               "# Excel",
-                                              $"[Week {weekNumber}]({{{{ site.github.url }}}}/scores/week{weekNumber}.csv)",
+                                              $"[Week {weekNumber}]({{{{ site.github.url }}}}/{currentDir}/week{weekNumber}.csv)",
                                               string.Empty,
                                               "# Discourse",
                                               "```",
