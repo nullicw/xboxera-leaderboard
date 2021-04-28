@@ -77,7 +77,7 @@ namespace XboxeraLeaderboard
                 //                                            week2.txt
                 //                                            ...
 
-                if (args[0] == "--weekly")
+                if(args[0] == "--weekly")
                 {
                     var rootScoringDir = Path.GetFullPath(args[1]);
 
@@ -92,16 +92,21 @@ namespace XboxeraLeaderboard
                     }
 
                     weekNr++;
-                    await Weekly(lastWeekCsvFile,
-                                 Path.Combine(dirForLatestMonth, $"week{weekNr}.csv"),
-                                 Path.Combine(dirForLatestMonth, $"week{weekNr}.txt"));
-
                     await WriteNewStatsFile(rootScoringDir, weekNr);
-                    await WriteNewGithubPage(rootScoringDir, dirForLatestMonth, weekNr);
+
+                    var discourse = await Weekly(lastWeekCsvFile, Path.Combine(dirForLatestMonth, $"week{weekNr}.csv"));
+                    await WriteNewGithubPage(rootScoringDir, dirForLatestMonth, weekNr, discourse);
                 }
                 else
                 {
-                    await Weekly(args[0], args[1]);
+                    var discourse = await Weekly(args[0], args[1]);
+
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine();
+                    foreach(var line in discourse)
+                    {
+                        Console.WriteLine(line);
+                    }
                 }
             }
         }
@@ -120,30 +125,28 @@ namespace XboxeraLeaderboard
                                           });
         }
 
-        private static async Task WriteNewGithubPage(string rootScoringDir, string currentDir, int weekNumber)
+        private static async Task WriteNewGithubPage(string rootScoringDir, string currentDir, int weekNumber, string[] discourse)
         {
-            var excelFileLinks = Directory.EnumerateFiles(currentDir, "*.csv")
-                                          .OrderBy(s => s)
-                                          .Select(s => $"[{Path.GetFileName(s)}]({Path.GetDirectoryName(Path.GetRelativePath(currentDir, s))}/{Path.GetFileName(s)})");
-            await File.WriteAllLinesAsync(Path.Combine(rootScoringDir, $"{DateTime.UtcNow:yyyy-MM-dd}-scan.md"),
+            await File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootScoringDir).FullName,
+                                          "_posts",
+                                          $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
                                           new string[] {
                                               "---",
-                                              "title: \"Result of gamerscore scan\" ",
+                                              $"title: \"Week {weekNumber}\" ",
                                               $"date: {DateTime.UtcNow:yyyy-MM-dd}",
                                               "layout: post",
                                               "category: weekly",
                                               "---",
                                               "",
                                               "# Excel-Links",
-                                              $"[week{weekNumber}.csv]({currentDir}/week{weekNumber}.csv)",
+                                              "{% link scores/week" + weekNumber + ".csv %}",
                                               "# Discourse",
-                                              "{% include " + $"{currentDir}/week{weekNumber}.txt" + "%}",
-                                          });
+                                              "```",
+                                          }.Concat(discourse)
+                                           .Concat(new[] { "```" }));
         }
 
-        private static async Task Weekly(string lastWeekFilename,
-                                         string nextWeekFilename,
-                                         string discordFilename = null)
+        private static async Task<string[]> Weekly(string lastWeekFilename, string nextWeekFilename)
         {
             // parsing input file
 
@@ -192,24 +195,11 @@ namespace XboxeraLeaderboard
             var toDiscourseWeekly = weeklyRanking.Select((g, i) => $"|{g.rank}.|{(i < 10 ? '@' : ' ')}{g.u.user}|{g.u.gamerTag}|{g.u.lastScore}|{g.newScore}|{g.gains}|{g.points}|");
             var toDiscourseGlobal = globalRanking.Select(g => $"|{g.rank}.|{g.u.user}|{g.u.gamerTag}|{g.totalPoints}|");
 
-            var toDiscourse = DiscourseWeeklyHeader.Concat(toDiscourseWeekly)
-                                                   .Concat(new[] { "\n" })
-                                                   .Concat(DiscourseGlobalHeader)
-                                                   .Concat(toDiscourseGlobal);
-
-            if(discordFilename != null)
-            {
-                await File.WriteAllLinesAsync(discordFilename, toDiscourse);
-            }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine();
-                foreach(var line in toDiscourse)
-                {
-                    Console.WriteLine(line);
-                }
-            }
+            return DiscourseWeeklyHeader.Concat(toDiscourseWeekly)
+                                        .Concat(new[] { "\n" })
+                                        .Concat(DiscourseGlobalHeader)
+                                        .Concat(toDiscourseGlobal)
+                                        .ToArray();
         }
 
         /// <summary>
