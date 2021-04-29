@@ -93,7 +93,7 @@ namespace XboxeraLeaderboard
 
                     weekNr++;
                     var discourse = await Weekly(lastWeekCsvFile, Path.Combine(dirForLatestMonth, $"week{weekNr}.csv"));
-                    await WriteNewGithubPage(rootScoringDir, dirForLatestMonth, weekNr, discourse);
+                    await WriteNewGithubPage(rootScoringDir, Path.GetFileName(dirForLatestMonth), weekNr, discourse);
                     await WriteNewStatsFile(rootScoringDir, weekNr);
                 }
                 else
@@ -131,16 +131,18 @@ namespace XboxeraLeaderboard
                                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
                                           new string[] {
                                               "---",
-                                              $"title: \"Week {weekNumber}\" ",
-                                              $"date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)",
                                               "layout: post",
                                               "tags: weekly",
+                                              $"title: \"Week {weekNumber}\" ",
+                                              $"date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)",
                                               "---",
                                               string.Empty,
                                               "# Excel",
-                                              $"[Week {weekNumber}]({{{{ site.github.url }}}}/{currentDir}/week{weekNumber}.csv)",
+                                              string.Empty,
+                                              $"[Week {weekNumber}]({{{{ site.github.url }}}}/scores/{currentDir}/week{weekNumber}.csv)",
                                               string.Empty,
                                               "# Discourse",
+                                              string.Empty,
                                               "```",
                                           }.Concat(discourse)
                                            .Concat(new[] { "```" }));
