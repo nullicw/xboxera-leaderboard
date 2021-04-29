@@ -92,10 +92,9 @@ namespace XboxeraLeaderboard
                     }
 
                     weekNr++;
-                    await WriteNewStatsFile(rootScoringDir, weekNr);
-
                     var discourse = await Weekly(lastWeekCsvFile, Path.Combine(dirForLatestMonth, $"week{weekNr}.csv"));
                     await WriteNewGithubPage(rootScoringDir, dirForLatestMonth, weekNr, discourse);
+                    await WriteNewStatsFile(rootScoringDir, weekNr);
                 }
                 else
                 {
@@ -121,7 +120,7 @@ namespace XboxeraLeaderboard
             await File.WriteAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename),
                                           new string[] {
                                               $"week={weekNumber}",
-                                              $"date={DateTime.UtcNow:yyyy-MM-dd-HH-mm-ss} (UTC)"
+                                              $"date={DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)"
                                           });
         }
 
@@ -133,7 +132,7 @@ namespace XboxeraLeaderboard
                                           new string[] {
                                               "---",
                                               $"title: \"Week {weekNumber}\" ",
-                                              $"date: {DateTime.UtcNow:yyyy-MM-dd}",
+                                              $"date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)",
                                               "layout: post",
                                               "tags: weekly",
                                               "---",
