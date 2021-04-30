@@ -139,12 +139,12 @@ namespace XboxeraLeaderboard
             // and directly add points to total leaderboard points
 
             var weeklyRanking = Rank(newScores, s => s.Gains, r => WeeklyPoints(r))
-                                .Select(r => r.score with { NewPoints = r.score.InitialPoints + r.points })
+                                .Select(r => r.score with { Rank = r.rank, Points = r.points, NewPoints = r.score.InitialPoints + r.points })
                                 .ToArray();
 
             // global ranking by new total leaderboard points
 
-            var globalRanking = Rank(weeklyRanking, s => s.NewPoints, Identity).Select(r => r.score);
+            var globalRanking = Rank(weeklyRanking, s => s.NewPoints, Identity).Select(r => r.score with { Rank = r.rank });
 
             // writing output (csv + discourse)
 
@@ -340,7 +340,8 @@ namespace XboxeraLeaderboard
             await File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootScoringDir).FullName,
                                                        "_posts",
                                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
-                                          BuildGithubPage($"Week {weekNumber}",
+                                          BuildGithubPage("weekly",
+                                                          $"Week {weekNumber}",
                                                           $"scores/{currentDir}/week{weekNumber}.csv",
                                                           discourse));
         }
@@ -350,16 +351,17 @@ namespace XboxeraLeaderboard
             await File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootScoringDir).FullName,
                                                        "_posts",
                                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-month-{currentMonth}.md"),
-                                          BuildGithubPage($"Month {currentMonth}",
+                                          BuildGithubPage("monthly",
+                                                          $"Month {currentMonth}",
                                                           $"scores/{currentMonth}/month.csv",
                                                           discourse));
         }
 
-        private static IEnumerable<string> BuildGithubPage(string title, string link, IEnumerable<string> discourseContent)
+        private static IEnumerable<string> BuildGithubPage(string tag, string title, string link, IEnumerable<string> discourseContent)
         {
             return new string[] { "---",
                                   "layout: post",
-                                  "tags: monthly",
+                                  $"tags: {tag}",
                                   $"title: \"{title}\" ",
                                   $"date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)",
                                   "---",
