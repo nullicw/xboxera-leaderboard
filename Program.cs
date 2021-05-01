@@ -203,7 +203,7 @@ namespace XboxeraLeaderboard
 
             // writing output (csv + discourse)
 
-            await WriteCsv(Path.Combine(currentMonthDir, "monthly.csv"), monthlyRanking);
+            await WriteCsv(Path.Combine(currentMonthDir, "month.csv"), monthlyRanking);
 
             var toDiscourseMonthly = monthlyRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
             var toDiscourseGlobal  = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
