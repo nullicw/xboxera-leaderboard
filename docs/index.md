@@ -21,5 +21,13 @@
 
 # Monthly stats
 
-...
+{% assign sorted-monthly-posts = site.tags.monthly | sort: 'post_date' %}
+
+<ul>
+  {% for post in sorted-monthly-posts %}
+      <li>
+        <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
+      </li>
+  {% endfor %}
+</ul>
 
