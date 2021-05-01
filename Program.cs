@@ -132,13 +132,13 @@ namespace XboxeraLeaderboard
 
             // getting current gamerscores from xbox and calculate gains
 
-            var newScores = users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid).Result })
-                                 .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) });
+            var newGs = users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid).Result })
+                             .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) });
 
             // weekly ranking (users with same gains have to be ranked the same!)
             // and directly add points to total leaderboard points
 
-            var weeklyRanking = Rank(newScores, s => s.Gains, r => WeeklyPoints(r))
+            var weeklyRanking = Rank(newGs, s => s.Gains, r => WeeklyPoints(r))
                                 .Select(r => r.score with { Rank = r.rank, Points = r.points, NewPoints = r.score.InitialPoints + r.points })
                                 .ToArray();
 
@@ -166,39 +166,40 @@ namespace XboxeraLeaderboard
         {
             // get leaderboard for end of last month
 
-            var users = await ReadCsv(Path.Combine(lastMonthDir, "monthly.csv"),
-                                      l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]), InitialGs: int.Parse(l[5]), InitialPoints: int.Parse(l[10])));
+            var lastMonth = await ReadCsv(Path.Combine(lastMonthDir, "month.csv"),
+                                          l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]), InitialGs: int.Parse(l[5]), InitialPoints: int.Parse(l[9])));
 
             // getting current gamerscores from xbox and calculate gains
 
-            var newScores = users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid).Result })
+            var newGs = lastMonth.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid).Result })
                                  .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) });
 
-            // monthly ranking (users with same gains have to be ranked the same!)
-            // and directly add points to total leaderboard points
+            // sum all weekly points for this month
 
-            var monthlyRanking = Rank(newScores, s => s.Gains, r => MonthlyPoints(r))
-                                 .Select(r => r.score with { NewPoints = r.score.InitialPoints + r.points })
+            var sumWeeklyPoints = Directory.EnumerateFiles(currentMonthDir, "*.csv")
+                                           .SelectMany(f => ReadCsv(f, l => (xuid: long.Parse(l[3]), points: int.Parse(l[7]))).Result)
+                                           .GroupBy(g => g.xuid)
+                                           .ToDictionary(g => g.Key, g => g.Sum(gg => gg.points));
+
+            // monthly ranking by gamerscore gains (users with same gains have to be ranked the same!)
+            // new_leaderboard_points = last_month_points + sum(weekly_points_of_month) + monthlyRanking
+
+            var monthlyRanking = Rank(newGs, s => s.Gains, r => MonthlyPoints(r))
+                                 .Select(r => r.score with {
+                                     Rank = r.rank,
+                                     Points = r.points,
+                                     NewPoints = r.score.InitialPoints + sumWeeklyPoints[r.score.Xuid] + r.points })
                                  .ToArray();
-
-            // add all weekly points
-
-            var weeklyPoints = Directory.EnumerateFiles(currentMonthDir, "*.csv")
-                                        .SelectMany(f => ReadCsv(f, l => (xuid: long.Parse(l[3]), points: int.Parse(l[7]))).Result)
-                                        .GroupBy(g => g.xuid)
-                                        .ToDictionary(g => g.Key, g => g.Sum(gg => gg.points));
 
             // global ranking by new total leaderboard points
 
-            var globalRanking = Rank(monthlyRanking.Select(d => d with { NewPoints = d.NewPoints + weeklyPoints[d.Xuid] }),
-                                     s => s.NewPoints,
-                                     Identity)
-                                .Select(r => r.score)
+            var globalRanking = Rank(monthlyRanking, s => s.NewPoints, Identity)
+                                .Select(r => r.score with { Rank = r.rank })
                                 .ToArray();
 
             // create dir for next month
 
-            Directory.CreateDirectory(Path.Combine(rootDir, $"{DateTime.Today: yyyy-MM}"));
+            Directory.CreateDirectory(Path.Combine(rootDir, $"{DateTime.Today:yyyy-MM}"));
 
             // writing output (csv + discourse)
 
