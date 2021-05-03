@@ -327,31 +327,38 @@ namespace XboxeraLeaderboard
             var csvData = ranking.Select(w => string.Join(CsvSeparator,
                                                           w.Rank, w.User, w.Gamertag, w.Xuid, w.InitialGs, w.FinalGs, w.Gains, w.Points, w.InitialPoints, w.NewPoints));
             File.WriteAllLines(filename, CsvHeader.Concat(csvData));
+            Console.WriteLine($"wrote csv file {filename}");
         }
 
         private static void WriteNewStatsFile(string rootDir, int weekNumber)
         {
-            File.WriteAllLines(Path.Combine(rootDir, StatsFilename),
+            var filename = Path.Combine(rootDir, StatsFilename);
+            File.WriteAllLines(filename,
                                new string[] {
                                    $"week={weekNumber}",
                                    $"date={DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)"
                                });
+            Console.WriteLine($"wrote stats file {filename}");
         }
 
         private static void WriteWeeklyGithubPage(string rootDir, string currentDir, int weekNumber, string[] discourse)
         {
-            File.WriteAllLines(Path.Combine(Directory.GetParent(rootDir).FullName,
-                                            "_posts",
-                                            $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
+            var filename = Path.Combine(Directory.GetParent(rootDir).FullName,
+                                        "_posts",
+                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md");
+            File.WriteAllLines(filename,
                                BuildGithubPage("weekly", $"Week {weekNumber}", $"scores/{currentDir}/week{weekNumber}.csv", discourse));
+            Console.WriteLine($"wrote github page {filename}");
         }
 
         private static void WriteMonthlyGithubPage(string rootDir, string currentMonth, string[] discourse)
         {
-            File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootDir).FullName,
-                                                 "_posts",
-                                                 $"{DateTime.UtcNow:yyyy-MM-dd}-scan-month-{currentMonth}.md"),
+            var filename = Path.Combine(Directory.GetParent(rootDir).FullName,
+                                        "_posts",
+                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-month-{currentMonth}.md");
+            File.WriteAllLinesAsync(filename,
                                     BuildGithubPage("monthly", $"Month {currentMonth}", $"scores/{currentMonth}/month.csv", discourse));
+            Console.WriteLine($"wrote github page {filename}");
         }
 
         private static IEnumerable<string> BuildGithubPage(string tag, string title, string link, IEnumerable<string> discourseContent)

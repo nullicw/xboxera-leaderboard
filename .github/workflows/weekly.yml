@@ -30,4 +30,8 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: weekly run
-        file_pattern: docs/*.*
+        skip_dirty_check: true
+        commit_options: '--dry-run --verbose --status'
+        # file_pattern: docs/*.*
+      # uses: EndBug/add-and-commit@v7
+      # with:
