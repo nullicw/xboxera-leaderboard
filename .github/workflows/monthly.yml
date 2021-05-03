@@ -1,4 +1,4 @@
-name: Generate weekly leaderboard
+name: Generate monthly leaderboard
 
 on:
   schedule:
