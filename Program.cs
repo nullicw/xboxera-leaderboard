@@ -60,7 +60,7 @@ namespace XboxeraLeaderboard
         /// get xuids for gamertag: https://www.cxkes.me/xbox/xuid
         /// how to use openXBL api https://xbl.io/getting-started
         /// </remarks>
-        public static async Task Main(string[] args)
+        public static void Main(string[] args)
         {
             if(args.Length != 2)
             {
@@ -74,43 +74,55 @@ namespace XboxeraLeaderboard
             else
             {
                 // directory structure: ./doc/scoring/lastscanstats.txt
-                //                                   /YYYY-MM/week1.csv
+                //                                   /YYYY-MM/month.csv
+                //                                            week1.csv
                 //                                            week1.txt
                 //                                            week2.csv
                 //                                            week2.txt
                 //                                            ...
+                // ./doc/scoring == rootDir
 
-                var rootScoringDir = Path.GetFullPath(args[1]);
+                var rootDir = Path.GetFullPath(args[1]);
 
                 if(args[0] == "--weekly")
                 {
-                    var stats  = await File.ReadAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename));
+                    var stats  = File.ReadAllLines(Path.Combine(rootDir, StatsFilename));
                     var weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
 
-                    var currentMonthDir = LatestDir(rootScoringDir);
-                    var lastWeekCsvFile = Path.Combine(currentMonthDir, $"week{weekNr}.csv");
-                    if(!File.Exists(lastWeekCsvFile))
+                    var currentMonthDir      = LatestDir(rootDir);
+                    var fileWithLatestPoints = Path.Combine(currentMonthDir, $"week{weekNr}.csv");
+
+                    IEnumerable<Ranking> users;
+                    if(!File.Exists(fileWithLatestPoints))
                     {
-                        lastWeekCsvFile = Path.Combine(LatestDir(rootScoringDir, 1), $"week{weekNr}.csv");
+                        var latestPoints = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"month.csv"))
+                                           .ToDictionary(m => m.Xuid, m => m.InitialPoints);
+
+                        users = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"week{weekNr}.csv"))
+                                .Select(u => u with { InitialPoints = latestPoints[u.Xuid] });
+                    }
+                    else
+                    {
+                        users = ReadCsv(fileWithLatestPoints);
                     }
 
                     weekNr++;
-                    var discourse = await Weekly(lastWeekCsvFile, Path.Combine(currentMonthDir, $"week{weekNr}.csv"));
-                    await WriteWeeklyGithubPage(rootScoringDir, Path.GetFileName(currentMonthDir), weekNr, discourse);
-                    await WriteNewStatsFile(rootScoringDir, weekNr);
+                    var discourse = Weekly(users, Path.Combine(currentMonthDir, $"week{weekNr}.csv"));
+                    WriteWeeklyGithubPage(rootDir, Path.GetFileName(currentMonthDir), weekNr, discourse);
+                    WriteNewStatsFile(rootDir, weekNr);
                 }
                 else if(args[0] == "--monthly")
                 {
-                    var currentMonthDir = LatestDir(rootScoringDir);
-                    var lastMonthDir    = LatestDir(rootScoringDir, 1);
+                    var currentMonthDir = LatestDir(rootDir);
+                    var lastMonthDir    = LatestDir(rootDir, 1);
 
-                    var discourse = await Monthly(rootScoringDir, lastMonthDir, currentMonthDir);
-
-                    await WriteMonthlyGithubPage(rootScoringDir, Path.GetFileName(currentMonthDir), discourse);
+                    var discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
+                    WriteMonthlyGithubPage(rootDir, Path.GetFileName(currentMonthDir), discourse);
                 }
                 else
                 {
-                    var discourse = await Weekly(args[0], args[1]);
+                    var inputCsv  = ReadCsv(args[0]);
+                    var discourse = Weekly(inputCsv, args[1]);
 
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine();
@@ -122,33 +134,22 @@ namespace XboxeraLeaderboard
             }
         }
 
-        private static async Task<string[]> Weekly(string lastWeekFilename, string thisWeekFilename)
+        private static string[] Weekly(IEnumerable<Ranking> users, string thisWeekFilename)
         {
-            // parsing input file
-            // BUG: wrong points if monthly runs after latest weekly
+            var newGamerscores = ReadAllNewGamerscores(users);
 
-            var users = ReadCsv(lastWeekFilename,
-                                l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]), InitialGs: int.Parse(l[5]), InitialPoints: int.Parse(l[9]))).Result;
-
-            // getting current gamerscores from xbox and calculate gains
-
-            var newGs = users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid).Result })
-                             .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) });
-
-            // weekly ranking (users with same gains have to be ranked the same!)
+            // weekly and new global ranking (users with same gains have to be ranked the same!)
             // and directly add points to total leaderboard points
 
-            var weeklyRanking = Rank(newGs, s => s.Gains, r => WeeklyPoints(r))
+            var weeklyRanking = Rank(newGamerscores, s => s.Gains, r => WeeklyPoints(r))
                                 .Select(r => r.score with { Rank = r.rank, Points = r.points, NewPoints = r.score.InitialPoints + r.points })
                                 .ToArray();
-
-            // global ranking by new total leaderboard points
 
             var globalRanking = Rank(weeklyRanking, s => s.NewPoints, Identity).Select(r => r.score with { Rank = r.rank });
 
             // writing output (csv + discourse)
 
-            await WriteCsv(thisWeekFilename, weeklyRanking);
+            WriteCsv(thisWeekFilename, weeklyRanking);
 
             var toDiscourseWeekly = weeklyRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
             var toDiscourseGlobal = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
@@ -162,48 +163,42 @@ namespace XboxeraLeaderboard
 
         private static int WeeklyPoints(int rank) => Max(0, 10 - rank);
 
-        private static async Task<string[]> Monthly(string rootDir, string lastMonthDir, string currentMonthDir)
+        private static string[] Monthly(string rootDir, string lastMonthDir, string currentMonthDir)
         {
-            // get leaderboard for end of last month
+            var users          = ReadCsv(Path.Combine(lastMonthDir, "month.csv"));
+            var newGamerscores = ReadAllNewGamerscores(users);
 
-            var lastMonth = await ReadCsv(Path.Combine(lastMonthDir, "month.csv"),
-                                          l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]), InitialGs: int.Parse(l[5]), InitialPoints: int.Parse(l[9])));
-
-            // getting current gamerscores from xbox and calculate gains
-
-            var newGs = lastMonth.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid).Result })
-                                 .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) });
-
-            // sum all weekly points for this month
+            // sum all weekly points (and extra points for game of the month) for this month
 
             var sumWeeklyPoints = Directory.EnumerateFiles(currentMonthDir, "*.csv")
-                                           .SelectMany(f => ReadCsv(f, l => (xuid: long.Parse(l[3]), points: int.Parse(l[7]))).Result)
-                                           .GroupBy(g => g.xuid)
-                                           .ToDictionary(g => g.Key, g => g.Sum(gg => gg.points));
+                                           .SelectMany(f => ReadCsv(f))
+                                           .GroupBy(g => g.Xuid)
+                                           .ToDictionary(g => g.Key, g => g.Sum(gg => gg.Points));
 
-            // monthly ranking by gamerscore gains (users with same gains have to be ranked the same!)
+            // monthly ranking by gamerscore gains (users with same gains have to be ranked the same!) and
+            // global ranking by new total leaderboard points
             // new_leaderboard_points = last_month_points + sum(weekly_points_of_month) + monthlyRanking
 
-            var monthlyRanking = Rank(newGs, s => s.Gains, r => MonthlyPoints(r))
+            var monthlyRanking = Rank(newGamerscores, s => s.Gains, r => MonthlyPoints(r))
                                  .Select(r => r.score with {
                                      Rank = r.rank,
                                      Points = r.points,
                                      NewPoints = r.score.InitialPoints + sumWeeklyPoints[r.score.Xuid] + r.points })
                                  .ToArray();
 
-            // global ranking by new total leaderboard points
-
             var globalRanking = Rank(monthlyRanking, s => s.NewPoints, Identity)
                                 .Select(r => r.score with { Rank = r.rank })
                                 .ToArray();
 
-            // create dir for next month
+            // create empty dir for next month
 
-            Directory.CreateDirectory(Path.Combine(rootDir, $"{DateTime.Today:yyyy-MM}"));
+            var nextMonthDir = Path.Combine(rootDir, $"{DateTime.Today:yyyy-MM}");
+            Directory.CreateDirectory(nextMonthDir);
+            File.WriteAllText(Path.Combine(nextMonthDir, ".gitignore"), "#empty");
 
             // writing output (csv + discourse)
 
-            await WriteCsv(Path.Combine(currentMonthDir, "month.csv"), monthlyRanking);
+            WriteCsv(Path.Combine(currentMonthDir, "month.csv"), monthlyRanking);
 
             var toDiscourseMonthly = monthlyRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
             var toDiscourseGlobal  = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
@@ -217,10 +212,19 @@ namespace XboxeraLeaderboard
 
         private static int MonthlyPoints(int rank) => Max(0, 100 - 10 * rank);
 
+        private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Max(0, gamerscoreNow - gamerscoreBefore);
+
+        private static IEnumerable<Ranking> ReadAllNewGamerscores(IEnumerable<Ranking> users)
+        {
+            return users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid)})
+                        .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) })
+                        .ToArray();
+        }
+
         /// <summary>
         /// calls open XBL api to get the gamerscore for a Xbox User Id (XUID)
         /// </summary>
-        private static async Task<int> ReadCurrentGamerScore(string gamerTag, long xuid)
+        private static int ReadCurrentGamerScore(string gamerTag, long xuid)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"calling open XBL api for {gamerTag} .... ");
@@ -236,7 +240,7 @@ namespace XboxeraLeaderboard
                 };
                 request.Headers.Add("X-Authorization", OpenXBLKey);
 
-                var response = await httpClient.SendAsync(request);
+                var response = httpClient.Send(request);
 
                 // response JSON looks like
                 // {
@@ -256,14 +260,14 @@ namespace XboxeraLeaderboard
 
                 if(response.IsSuccessStatusCode)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
+                    var content = response.Content.ReadAsStringAsync().Result;
 
                     var settings = JObject.Parse(content)["profileUsers"].First()["settings"].Children();
                     var gamerscoreSettings = settings.Select(s => s.ToObject<OpenXblSettings>())
                                                      .First(s => s.Id == "Gamerscore");
 
                     // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    await Task.Delay(2500);
+                    System.Threading.Thread.Sleep(2500);
 
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("OK");
@@ -285,10 +289,8 @@ namespace XboxeraLeaderboard
             }
         }
 
-        private static T Identity<T>(T t) => t;
-
         /// <summary>
-        /// ranks a sequence and scores it by rank
+        /// ranks a sequence and scores it by rank (elements with same score get same rank)
         /// </summary>
         private static IEnumerable<(T score, int rank, int points)> Rank<T>(IEnumerable<T> toRank, Func<T, int> rankBy, Func<int, int> scoring)
         {
@@ -303,59 +305,53 @@ namespace XboxeraLeaderboard
             return grouped;
         }
 
-        private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Max(0, gamerscoreNow - gamerscoreBefore);
+        private static T Identity<T>(T t) => t;
 
         private static string LatestDir(string path, int skip = 0) => Directory.EnumerateDirectories(path)
                                                                                .OrderByDescending(s => s)
                                                                                .Skip(skip)
                                                                                .First();
 
-        private static async Task<IEnumerable<T>> ReadCsv<T>(string filename, Func<string[], T> convert)
+        private static IEnumerable<Ranking> ReadCsv(string filename)
         {
-            var file = await File.ReadAllLinesAsync(filename);
+            var file = File.ReadAllLines(filename);
 
             return file.Where(l => !string.IsNullOrWhiteSpace(l))
-                       .Skip(1) // headline
+                       .Skip(1) // header
                        .Select(l => l.Split(CsvSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                       .Select(l => convert(l));
+                       .Select(l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]), InitialGs: int.Parse(l[5]), Points: int.Parse(l[7]), InitialPoints: int.Parse(l[9])));
         }
 
-        private static async Task WriteCsv(string filename, IEnumerable<Ranking> ranking)
+        private static void WriteCsv(string filename, IEnumerable<Ranking> ranking)
         {
             var csvData = ranking.Select(w => string.Join(CsvSeparator,
                                                           w.Rank, w.User, w.Gamertag, w.Xuid, w.InitialGs, w.FinalGs, w.Gains, w.Points, w.InitialPoints, w.NewPoints));
-            await File.WriteAllLinesAsync(filename, CsvHeader.Concat(csvData));
+            File.WriteAllLines(filename, CsvHeader.Concat(csvData));
         }
 
-        private static async Task WriteNewStatsFile(string rootScoringDir, int weekNumber)
+        private static void WriteNewStatsFile(string rootDir, int weekNumber)
         {
-            await File.WriteAllLinesAsync(Path.Combine(rootScoringDir, StatsFilename),
-                                          new string[] {
-                                              $"week={weekNumber}",
-                                              $"date={DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)"
-                                          });
+            File.WriteAllLines(Path.Combine(rootDir, StatsFilename),
+                               new string[] {
+                                   $"week={weekNumber}",
+                                   $"date={DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)"
+                               });
         }
 
-        private static async Task WriteWeeklyGithubPage(string rootScoringDir, string currentDir, int weekNumber, string[] discourse)
+        private static void WriteWeeklyGithubPage(string rootDir, string currentDir, int weekNumber, string[] discourse)
         {
-            await File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootScoringDir).FullName,
-                                                       "_posts",
-                                                       $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
-                                          BuildGithubPage("weekly",
-                                                          $"Week {weekNumber}",
-                                                          $"scores/{currentDir}/week{weekNumber}.csv",
-                                                          discourse));
+            File.WriteAllLines(Path.Combine(Directory.GetParent(rootDir).FullName,
+                                            "_posts",
+                                            $"{DateTime.UtcNow:yyyy-MM-dd}-scan-week-{weekNumber}.md"),
+                               BuildGithubPage("weekly", $"Week {weekNumber}", $"scores/{currentDir}/week{weekNumber}.csv", discourse));
         }
 
-        private static async Task WriteMonthlyGithubPage(string rootScoringDir, string currentMonth, string[] discourse)
+        private static void WriteMonthlyGithubPage(string rootDir, string currentMonth, string[] discourse)
         {
-            await File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootScoringDir).FullName,
-                                                       "_posts",
-                                                       $"{DateTime.UtcNow:yyyy-MM-dd}-scan-month-{currentMonth}.md"),
-                                          BuildGithubPage("monthly",
-                                                          $"Month {currentMonth}",
-                                                          $"scores/{currentMonth}/month.csv",
-                                                          discourse));
+            File.WriteAllLinesAsync(Path.Combine(Directory.GetParent(rootDir).FullName,
+                                                 "_posts",
+                                                 $"{DateTime.UtcNow:yyyy-MM-dd}-scan-month-{currentMonth}.md"),
+                                    BuildGithubPage("monthly", $"Month {currentMonth}", $"scores/{currentMonth}/month.csv", discourse));
         }
 
         private static IEnumerable<string> BuildGithubPage(string tag, string title, string link, IEnumerable<string> discourseContent)
