@@ -1,12 +1,3 @@
-# Instructions for manual run
-
-1. download latest Windows release linked at the top
-2. unzip the package and open a Cmdline window inside this folder
-3. run xboxeraleaderboard.exe week31.csv week32.csv
-4. check the cmdline output
-5. copy the two tables in the cmdline output to XboxEra's Discourse editor
-6. rejoice!
-
 # Weekly stats
 
 {% assign sorted-weekly-posts = site.tags.weekly | sort: 'post_date' %}
@@ -31,3 +22,11 @@
   {% endfor %}
 </ul>
 
+# Instructions for manual run
+
+1. clone the repository
+2. build the executable with VSCode or VS 2019 or download the latest Windows release linked at the top
+3. open a Cmdline window inside this folder and run xboxeraleaderboard.exe with the appropriate cmdline options
+4. check the output for errors (can happen, open XBL api is not super reliable)
+5. copy the two tables in the cmdline output to XboxEra's Discourse editor
+6. rejoice!
