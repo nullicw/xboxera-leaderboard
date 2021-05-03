@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: main
+        ref: ${{ github.head_ref }}
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
@@ -30,4 +30,4 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
         commit_message: weekly run
-        file_pattern: doc/*.*
+        file_pattern: docs/*.*
