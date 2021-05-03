@@ -27,11 +27,6 @@ jobs:
     - name: Generate weekly leaderboard
       run: dotnet run --configuration Release --weekly ./docs/scores
     - name: checkin new stats
-      # uses: stefanzweifel/git-auto-commit-action@v4
-      # with:
-        # commit_message: weekly run
-        # skip_dirty_check: true
-        # commit_options: '--dry-run --verbose --status'
       uses: EndBug/add-and-commit@v7
       with:
-        push: false
+        message: 'weekly run'

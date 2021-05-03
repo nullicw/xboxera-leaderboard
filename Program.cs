@@ -37,7 +37,7 @@ namespace XboxeraLeaderboard
         /// the API key for openXBL needed to call their REST services (a new can be generated on their
         /// site on demand at no cost)
         /// </summary>
-        private const string OpenXBLKey = "koso444og0w8w8ckw8s44sgk0gkwwos4g8s";
+        private const string OpenXBLKey = "skooks048gw80ks0co8wk4ow0k0ggksoks8";
 
         /// <summary>
         /// Takes a list of gamertags in csv format (with their xuid and last weeks gamerscore),

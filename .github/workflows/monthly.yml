@@ -27,7 +27,6 @@ jobs:
     - name: Generate weekly leaderboard
       run: dotnet run --configuration Release --monthly ./docs/scores
     - name: Checkin new stats
-      uses: stefanzweifel/git-auto-commit-action@v4
+      uses: EndBug/add-and-commit@v7
       with:
-        commit_message: monthly run
-        file_pattern: docs/*.*
+        message: 'monthly run'
