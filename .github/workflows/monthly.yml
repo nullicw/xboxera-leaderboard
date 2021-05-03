@@ -2,8 +2,8 @@ name: Generate weekly leaderboard
 
 on:
   schedule:
-    # every week 06:20 AM UTC on Monday (https://crontab.guru/#20_6_*_*_1)
-    - cron:  '20 6 * * 1'
+    # first day of the month 06:40 AM UTC (https://crontab.guru/#40_6_1_*_*)
+    - cron:  '40 6 1 * *'
   workflow_dispatch:
     branches: [ main ]
 
@@ -25,9 +25,9 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Generate weekly leaderboard
-      run: dotnet run --configuration Release --weekly ./docs/scores
-    - name: checkin new stats
-      uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: weekly run
-        file_pattern: doc/*.*
+      run: dotnet run --configuration Release --monthly ./docs/scores
+    - name: Checkin new stats
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: monthly run
+          file_pattern: doc/*.*
