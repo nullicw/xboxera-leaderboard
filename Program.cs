@@ -20,6 +20,7 @@ namespace XboxeraLeaderboard
 
     public class Program
     {
+        private const int                MaxHttpRetries         = 3;
         private const char               CsvSeparator           = ';';
         private const string             StatsFilename          = "lastscanstats.txt";
 
@@ -229,64 +230,76 @@ namespace XboxeraLeaderboard
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"calling open XBL api for {gamerTag} .... ");
 
-            try
+            int    retries = 0;
+            string json    = string.Empty;
+
+            do
             {
-                using var httpClient = new HttpClient();
-
-                var request = new HttpRequestMessage
+                try
                 {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri($"https://xbl.io/api/v2/account/{xuid}"),
-                };
-                request.Headers.Add("X-Authorization", OpenXBLKey);
+                    using var httpClient = new HttpClient();
 
-                var response = httpClient.Send(request);
+                    var request = new HttpRequestMessage
+                    {
+                        Method = HttpMethod.Get,
+                        RequestUri = new Uri($"https://xbl.io/api/v2/account/{xuid}"),
+                    };
+                    request.Headers.Add("X-Authorization", OpenXBLKey);
 
-                // response JSON looks like
-                // {
-                //   "profileUsers": [
-                //   {
-                //     "id": "2535413400000000",
-                //     "hostId": "2535413400000000",
-                //     "settings": [
-                //       {
-                //         "id": "GameDisplayPicRaw",
-                //         "value": "http://images-eds.xboxlive.com/image?url=wHwbXKif8cus8csoZ03RW_ES.ojiJijNBGRVUbTnZKsoCCCkjlsEJrrMqDkYqs3MBhMLdvWFHLCswKMlApTSbzvES1cjEAVPrczatfOc0jR0Ss4zHEy6ErElLAY8rAVFRNqPmGHxiumHSE9tZRnlghsACzaoisWEww1VSUd9Sx0-&format=png"
-                //         },
-                //         {
-                //         "id": "Gamerscore",
-                //         "value": "6855"
-                //         }, ...
+                    var response = httpClient.Send(request);
 
-                if(response.IsSuccessStatusCode)
-                {
-                    var content = response.Content.ReadAsStringAsync().Result;
+                    // response JSON looks like
+                    // {
+                    //   "profileUsers": [
+                    //   {
+                    //     "id": "2535413400000000",
+                    //     "hostId": "2535413400000000",
+                    //     "settings": [
+                    //       {
+                    //         "id": "GameDisplayPicRaw",
+                    //         "value": "http://images-eds.xboxlive.com/image?url=wHwbXKif8cus8csoZ03RW_ES.ojiJijNBGRVUbTnZKsoCCCkjlsEJrrMqDkYqs3MBhMLdvWFHLCswKMlApTSbzvES1cjEAVPrczatfOc0jR0Ss4zHEy6ErElLAY8rAVFRNqPmGHxiumHSE9tZRnlghsACzaoisWEww1VSUd9Sx0-&format=png"
+                    //         },
+                    //         {
+                    //         "id": "Gamerscore",
+                    //         "value": "6855"
+                    //         }, ...
 
-                    var settings = JObject.Parse(content)["profileUsers"].First()["settings"].Children();
-                    var gamerscoreSettings = settings.Select(s => s.ToObject<OpenXblSettings>())
-                                                     .First(s => s.Id == "Gamerscore");
+                    if(response.IsSuccessStatusCode)
+                    {
+                        json = response.Content.ReadAsStringAsync().Result;
 
-                    // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    System.Threading.Thread.Sleep(2500);
+                        var settings = JObject.Parse(json)["profileUsers"].First()["settings"].Children();
+                        var gamerscoreSettings = settings.Select(s => s.ToObject<OpenXblSettings>())
+                                                         .First(s => s.Id == "Gamerscore");
 
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("OK");
+                        // open XBL api only allows 10 requests per 15 seconds, so give it some time
+                        System.Threading.Thread.Sleep(2500);
 
-                    return int.Parse(gamerscoreSettings.Value);
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("OK");
+
+                        return int.Parse(gamerscoreSettings.Value);
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"error = {response.ReasonPhrase}");
+                    }
                 }
-                else
+                catch(Exception exc)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"error = {response.ReasonPhrase}");
-                    return 0;
+                    Console.WriteLine($"error = {exc.Message}, response = '{json}'");
                 }
+
+                // request probably failed because open XBL limited the request rate, so give it some time
+                System.Threading.Thread.Sleep(10000);
             }
-            catch(Exception exc)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"error = {exc.Message}");
-                return 0;
-            }
+            while (retries++ < MaxHttpRetries);
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\nMaximum number of allowed retries (={MaxHttpRetries}) exceeded. Aborting program execution!");
+            throw new InvalidOperationException("retries exceeded");
         }
 
         /// <summary>
