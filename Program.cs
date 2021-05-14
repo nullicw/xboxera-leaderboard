@@ -100,12 +100,12 @@ namespace XboxeraLeaderboard
                 }
                 else if(args[0].StartsWith("--game="))
                 {
-                    var gameName = args[0][7..].Trim('\"');
+                    var gameName = args[0][7..].Trim('\"').ToLower();
 
                     LatestWeeklyCsv(rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints);
-                    var users = ReadCsv(fileWithLatestPoints).ToArray();
+                    var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
 
-                    var discourse = MonthlyGame(rootDir, currentMonthDir, gameName, users);
+                    var discourse = MonthlyGame(currentMonthDir, gameName, users);
                     WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), gameName, discourse);
                 }
                 else if(args[0] == "--weekly")
@@ -226,10 +226,10 @@ namespace XboxeraLeaderboard
 
         private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Max(0, gamerscoreNow - gamerscoreBefore);
 
-        private static string[] MonthlyGame(string rootDir, string currentMonthDir, string gameName, Ranking[] users)
+        private static string[] MonthlyGame(string currentMonthDir, string gameName, Ranking[] users)
         {
             // calls open XBL api to get the title-ID for all games a user has played
-            // searches all games all users have played till the correct is found
+            // searches all games all users have played till the first match is found
             //
             // response JSON looks like
             // {
@@ -244,7 +244,7 @@ namespace XboxeraLeaderboard
 
             var gameTitleId = users.Select(u => CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}",
                                                                j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
-                                                .FirstOrDefault(t => t.Name == gameName)
+                                                .FirstOrDefault(t => t.Name.ToLower() == gameName)
                                                 ?.TitleId)
                                    .First(t => t.HasValue).Value;
 
@@ -263,14 +263,36 @@ namespace XboxeraLeaderboard
             //         "type": "Gamerscore",
             //       }, ...
 
-            var userScoresForTitle = users.Select(u => u with { Gains = CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}/title/{gameTitleId}",
+            var gamerscoresForTitle = users.Select(u => u with { Gains = CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}/title/{gameTitleId}",
                                                                                        j => j["achievements"].Select(a => a.ToObject<OpenXblAchievement>()))
-                                                                        .Where(a => a.ProgressState == "Achieved")
-                                                                        .Sum(a => a.Rewards.First().Value) })
-                                          .ToArray();
+                                                                         .Where(a => a.ProgressState == "Achieved")
+                                                                         .Sum(a => a.Rewards.First().Value) })
+                                           .ToArray();
 
-            return null;
+            // now ranking on gains for the montly game but only the best with the most gamerscore gains get points in this case
+
+            var titleRanking = Rank(gamerscoresForTitle, s => s.Gains, r => MonthlyPoints(r))
+                               .Select(r => r.rank == 1 ? r.score with { Rank = 1, FinalGs = r.score.Gains, Points = r.points, NewPoints = r.score.InitialPoints + r.points } :
+                                                          r.score with { Rank = 2, FinalGs = r.score.Gains, Points = 0,        NewPoints = r.score.InitialPoints })
+                               .ToArray();
+
+            var globalRanking = Rank(titleRanking, s => s.NewPoints, Identity).Select(r => r.score with { Rank = r.rank });
+
+            // writing output (csv + discourse)
+
+            WriteCsv(Path.Combine(currentMonthDir, $"{GameToFilename(gameName)}.csv"), titleRanking);
+
+            var toDiscourseTitle  = titleRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
+            var toDiscourseGlobal = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
+
+            return DiscoursePeriodHeader.Concat(toDiscourseTitle)
+                                        .Concat(new[] { "\n" })
+                                        .Concat(DiscourseSummaryHeader)
+                                        .Concat(toDiscourseGlobal)
+                                        .ToArray();
         }
+
+        private static string GameToFilename(string title) => title.Replace(" ", "");
 
         private static IEnumerable<Ranking> ReadAllNewGamerscores(IEnumerable<Ranking> users)
         {
@@ -435,9 +457,14 @@ namespace XboxeraLeaderboard
             Console.WriteLine($"wrote github page {filename}");
         }
 
-        private static void WriteMonthlyGameGithubPage(string rootDir, string v, string gameName, object discourse)
+        private static void WriteMonthlyGameGithubPage(string rootDir, string currentDir, string gameName, string[] discourse)
         {
-            throw new NotImplementedException();
+            var filename = Path.Combine(Directory.GetParent(rootDir).FullName,
+                                        "_posts",
+                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-game-{GameToFilename(gameName)}.md");
+            File.WriteAllLinesAsync(filename,
+                                    BuildGithubPage("monthly", $"Game {gameName}", $"scores/{currentDir}/{GameToFilename(gameName)}.csv", discourse));
+            Console.WriteLine($"wrote github page {filename}");
         }
 
         private static IEnumerable<string> BuildGithubPage(string tag, string title, string link, IEnumerable<string> discourseContent)
