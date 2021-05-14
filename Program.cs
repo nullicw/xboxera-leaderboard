@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Threading.Tasks;
 
 using static System.Math;
 
@@ -15,6 +14,9 @@ namespace XboxeraLeaderboard
     /// for parsing the open XBL api JSON response
     /// </summary>
     internal record OpenXblSettings(string Id, string Value);
+    internal record OpenXblTitle(long TitleId, string Name);
+    internal record OpenXblAchievement(string ProgressState, OpenXblReward[] Rewards);
+    internal record OpenXblReward(int Value);
 
     internal record Ranking(string User, string Gamertag, long Xuid, int Rank = 0, int InitialGs = 0, int FinalGs = 0, int Gains = 0, int Points = 0, int InitialPoints = 0, int NewPoints = 0);
 
@@ -23,6 +25,9 @@ namespace XboxeraLeaderboard
         private const int                MaxHttpRetries         = 3;
         private const char               CsvSeparator           = ';';
         private const string             StatsFilename          = "lastscanstats.txt";
+
+        private const string OpenXblPlayerStats  = "https://xbl.io/api/v2/account";
+        private const string OpenXblPlayerTitles = "https://xbl.io/api/v2/achievements/player";
 
         private static readonly string[] CsvHeader              = new string[] { "#;User;Gamertag;XUID;Initial GS;Final GS;Gains;Points;Initial Global Points;New Global Points" };
         private static readonly string[] DiscoursePeriodHeader  = new string[] {
@@ -69,6 +74,7 @@ namespace XboxeraLeaderboard
                 Console.WriteLine("XboxeraLeaderboard.exe $lastweek-filename $thisweek-filename");
                 Console.WriteLine("XboxeraLeaderboard.exe --weekly $scores-path");
                 Console.WriteLine("XboxeraLeaderboard.exe --monthly $scores-path");
+                Console.WriteLine("XboxeraLeaderboard.exe --game=\"game-title\" $scores-path");
                 Console.WriteLine("i.e. XboxeraLeaderboard.exe week31.csv week32.csv");
                 Console.WriteLine("  or XboxeraLeaderboard.exe --weekly ./docs/scores");
             }
@@ -85,13 +91,27 @@ namespace XboxeraLeaderboard
 
                 var rootDir = Path.GetFullPath(args[1]);
 
-                if(args[0] == "--weekly")
+                if(args[0] == "--monthly")
                 {
-                    var stats  = File.ReadAllLines(Path.Combine(rootDir, StatsFilename));
-                    var weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
+                    var currentMonthDir = LatestDir(rootDir);
+                    var lastMonthDir    = LatestDir(rootDir, 1);
 
-                    var currentMonthDir      = LatestDir(rootDir);
-                    var fileWithLatestPoints = Path.Combine(currentMonthDir, $"week{weekNr}.csv");
+                    var discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
+                    WriteMonthlyGithubPage(rootDir, Path.GetFileName(currentMonthDir), discourse);
+                }
+                else if(args[0].StartsWith("--game="))
+                {
+                    var gameName = args[0][7..].Trim('\"').ToLower();
+
+                    LatestWeeklyCsv(rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints);
+                    var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
+
+                    var discourse = MonthlyGame(currentMonthDir, gameName, users);
+                    WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), gameName, discourse);
+                }
+                else if(args[0] == "--weekly")
+                {
+                    LatestWeeklyCsv(rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints);
 
                     IEnumerable<Ranking> users;
                     if(!File.Exists(fileWithLatestPoints))
@@ -111,14 +131,6 @@ namespace XboxeraLeaderboard
                     var discourse = Weekly(users, Path.Combine(currentMonthDir, $"week{weekNr}.csv"));
                     WriteWeeklyGithubPage(rootDir, Path.GetFileName(currentMonthDir), weekNr, discourse);
                     WriteNewStatsFile(rootDir, weekNr);
-                }
-                else if(args[0] == "--monthly")
-                {
-                    var currentMonthDir = LatestDir(rootDir);
-                    var lastMonthDir    = LatestDir(rootDir, 1);
-
-                    var discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
-                    WriteMonthlyGithubPage(rootDir, Path.GetFileName(currentMonthDir), discourse);
                 }
                 else
                 {
@@ -215,6 +227,74 @@ namespace XboxeraLeaderboard
 
         private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Max(0, gamerscoreNow - gamerscoreBefore);
 
+        private static string[] MonthlyGame(string currentMonthDir, string gameName, Ranking[] users)
+        {
+            // calls open XBL api to get the title-ID for all games a user has played
+            // searches all games all users have played till the first match is found
+            //
+            // response JSON looks like
+            // {
+            //   "xuid": "2533274817036922",
+            //   "titles": [
+            //   {
+            //     "titleId": "1997023214",
+            //     "name": "FINAL FANTASY IX",
+            //     "type": "Game"
+            //     }, {
+            //     ...
+
+            var gameTitleId = users.Select(u => CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}",
+                                                               j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
+                                                .FirstOrDefault(t => t.Name.ToLower() == gameName)
+                                                ?.TitleId)
+                                   .First(t => t.HasValue).Value;
+
+            // calls open XBL api to sum all gamerscores of a user for gameTitleId
+            //
+            // response JSON looks like
+            // {
+            // "achievements": [
+            //   {
+            //     "id": "1",
+            //     "name": "Welcome to Britain",
+            //     "progressState": "Achieved",
+            //     "rewards": [
+            //       {
+            //         "value": "10",
+            //         "type": "Gamerscore",
+            //       }, ...
+
+            var gamerscoresForTitle = users.Select(u => u with { Gains = CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}/title/{gameTitleId}",
+                                                                                       j => j["achievements"].Select(a => a.ToObject<OpenXblAchievement>()))
+                                                                         .Where(a => a.ProgressState == "Achieved")
+                                                                         .Sum(a => a.Rewards.First().Value) })
+                                           .ToArray();
+
+            // now ranking on gains for the montly game but only the best with the most gamerscore gains get points in this case
+
+            var titleRanking = Rank(gamerscoresForTitle, s => s.Gains, r => MonthlyPoints(r))
+                               .Select(r => r.rank == 1 ? r.score with { Rank = 1, FinalGs = r.score.Gains, Points = r.points, NewPoints = r.score.InitialPoints + r.points } :
+                                                          r.score with { Rank = 2, FinalGs = r.score.Gains, Points = 0,        NewPoints = r.score.InitialPoints })
+                               .ToArray();
+
+            var globalRanking = Rank(titleRanking, s => s.NewPoints, Identity).Select(r => r.score with { Rank = r.rank });
+
+            // writing output (csv + discourse)
+
+            WriteCsv(Path.Combine(currentMonthDir, $"{GameToFilename(gameName)}.csv"), titleRanking);
+
+            var toDiscourseTitle  = titleRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
+            var toDiscourseGlobal = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
+
+            return DiscoursePeriodHeader.Concat(toDiscourseTitle)
+                                        .Concat(new[] { "\n" })
+                                        .Concat(DiscourseSummaryHeader)
+                                        .Concat(toDiscourseGlobal)
+                                        .ToArray();
+        }
+
+        private static string GameToFilename(string title) => title.Replace(" ", "");
+
         private static IEnumerable<Ranking> ReadAllNewGamerscores(IEnumerable<Ranking> users)
         {
             return users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid)})
@@ -222,14 +302,40 @@ namespace XboxeraLeaderboard
                         .ToArray();
         }
 
-        /// <summary>
-        /// calls open XBL api to get the gamerscore for a Xbox User Id (XUID)
-        /// </summary>
         private static int ReadCurrentGamerScore(string gamerTag, long xuid)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"calling open XBL api for {gamerTag} .... ");
 
+            // calls open XBL api to get the gamerscore for a Xbox User Id(XUID)
+            //
+            // response JSON looks like
+            // {
+            //   "profileUsers": [
+            //   {
+            //     "id": "2535413400000000",
+            //     "hostId": "2535413400000000",
+            //     "settings": [
+            //       {
+            //         "id": "GameDisplayPicRaw",
+            //         "value": "http://images-eds.xboxlive.com/image?url=wHwbXKif8cus8csoZ03RW_ES.ojiJijNBGRVUbTnZKsoCCCkjlsEJrrMqDkYqs3MBhMLdvWFHLCswKMlApTSbzvES1cjEAVPrczatfOc0jR0Ss4zHEy6ErElLAY8rAVFRNqPmGHxiumHSE9tZRnlghsACzaoisWEww1VSUd9Sx0-&format=png"
+            //         },
+            //         {
+            //         "id": "Gamerscore",
+            //         "value": "6855"
+            //         }, ...
+
+            return CallOpenXblApi($"{OpenXblPlayerStats}/{xuid}",
+                                  j => int.Parse(j["profileUsers"].First()["settings"].Children()
+                                                 .Select(s => s.ToObject<OpenXblSettings>())
+                                                 .First(s => s.Id == "Gamerscore").Value));
+        }
+
+        /// <summary>
+        /// calls open XBL api rest service and parse Json result
+        /// </summary>
+        private static T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
+        {
             int    retries = 0;
             string json    = string.Empty;
 
@@ -241,36 +347,17 @@ namespace XboxeraLeaderboard
 
                     var request = new HttpRequestMessage
                     {
-                        Method = HttpMethod.Get,
-                        RequestUri = new Uri($"https://xbl.io/api/v2/account/{xuid}"),
+                        Method     = HttpMethod.Get,
+                        RequestUri = new Uri(openXblUrl),
                     };
                     request.Headers.Add("X-Authorization", OpenXBLKey);
 
                     var response = httpClient.Send(request);
 
-                    // response JSON looks like
-                    // {
-                    //   "profileUsers": [
-                    //   {
-                    //     "id": "2535413400000000",
-                    //     "hostId": "2535413400000000",
-                    //     "settings": [
-                    //       {
-                    //         "id": "GameDisplayPicRaw",
-                    //         "value": "http://images-eds.xboxlive.com/image?url=wHwbXKif8cus8csoZ03RW_ES.ojiJijNBGRVUbTnZKsoCCCkjlsEJrrMqDkYqs3MBhMLdvWFHLCswKMlApTSbzvES1cjEAVPrczatfOc0jR0Ss4zHEy6ErElLAY8rAVFRNqPmGHxiumHSE9tZRnlghsACzaoisWEww1VSUd9Sx0-&format=png"
-                    //         },
-                    //         {
-                    //         "id": "Gamerscore",
-                    //         "value": "6855"
-                    //         }, ...
-
                     if(response.IsSuccessStatusCode)
                     {
-                        json = response.Content.ReadAsStringAsync().Result;
-
-                        var settings = JObject.Parse(json)["profileUsers"].First()["settings"].Children();
-                        var gamerscoreSettings = settings.Select(s => s.ToObject<OpenXblSettings>())
-                                                         .First(s => s.Id == "Gamerscore");
+                        json   = response.Content.ReadAsStringAsync().Result;
+                        var result = parse(JObject.Parse(json));
 
                         // open XBL api only allows 10 requests per 15 seconds, so give it some time
                         System.Threading.Thread.Sleep(2500);
@@ -278,7 +365,7 @@ namespace XboxeraLeaderboard
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine("OK");
 
-                        return int.Parse(gamerscoreSettings.Value);
+                        return result;
                     }
                     else
                     {
@@ -324,6 +411,15 @@ namespace XboxeraLeaderboard
                                                                                .OrderByDescending(s => s)
                                                                                .Skip(skip)
                                                                                .First();
+
+        private static void LatestWeeklyCsv(string rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints)
+        {
+            var stats = File.ReadAllLines(Path.Combine(rootDir, StatsFilename));
+            weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
+
+            currentMonthDir = LatestDir(rootDir);
+            fileWithLatestPoints = Path.Combine(currentMonthDir, $"week{weekNr}.csv");
+        }
 
         private static IEnumerable<Ranking> ReadCsv(string filename)
         {
@@ -371,6 +467,16 @@ namespace XboxeraLeaderboard
                                         $"{DateTime.UtcNow:yyyy-MM-dd}-scan-month-{currentMonth}.md");
             File.WriteAllLinesAsync(filename,
                                     BuildGithubPage("monthly", $"Month {currentMonth}", $"scores/{currentMonth}/month.csv", discourse));
+            Console.WriteLine($"wrote github page {filename}");
+        }
+
+        private static void WriteMonthlyGameGithubPage(string rootDir, string currentDir, string gameName, string[] discourse)
+        {
+            var filename = Path.Combine(Directory.GetParent(rootDir).FullName,
+                                        "_posts",
+                                        $"{DateTime.UtcNow:yyyy-MM-dd}-scan-game-{GameToFilename(gameName)}.md");
+            File.WriteAllLinesAsync(filename,
+                                    BuildGithubPage("monthly", $"Game {gameName}", $"scores/{currentDir}/{GameToFilename(gameName)}.csv", discourse));
             Console.WriteLine($"wrote github page {filename}");
         }
 
