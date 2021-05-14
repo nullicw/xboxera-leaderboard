@@ -22,6 +22,7 @@ namespace XboxeraLeaderboard
 
     public class Program
     {
+        private const int                MaxHttpRetries         = 3;
         private const char               CsvSeparator           = ';';
         private const string             StatsFilename          = "lastscanstats.txt";
 
@@ -335,45 +336,57 @@ namespace XboxeraLeaderboard
         /// </summary>
         private static T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
         {
-            try
+            int    retries = 0;
+            string json    = string.Empty;
+
+            do
             {
-                using var httpClient = new HttpClient();
-
-                var request = new HttpRequestMessage
+                try
                 {
-                    Method     = HttpMethod.Get,
-                    RequestUri = new Uri(openXblUrl),
-                };
-                request.Headers.Add("X-Authorization", OpenXBLKey);
+                    using var httpClient = new HttpClient();
 
-                var response = httpClient.Send(request);
+                    var request = new HttpRequestMessage
+                    {
+                        Method     = HttpMethod.Get,
+                        RequestUri = new Uri(openXblUrl),
+                    };
+                    request.Headers.Add("X-Authorization", OpenXBLKey);
 
-                if(response.IsSuccessStatusCode)
-                {
-                    var json   = response.Content.ReadAsStringAsync().Result;
-                    var result = parse(JObject.Parse(json));
+                    var response = httpClient.Send(request);
 
-                    // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    System.Threading.Thread.Sleep(2500);
+                    if(response.IsSuccessStatusCode)
+                    {
+                        json   = response.Content.ReadAsStringAsync().Result;
+                        var result = parse(JObject.Parse(json));
 
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("OK");
+                        // open XBL api only allows 10 requests per 15 seconds, so give it some time
+                        System.Threading.Thread.Sleep(2500);
 
-                    return result;
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("OK");
+
+                        return result;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"error = {response.ReasonPhrase}");
+                    }
                 }
-                else
+                catch(Exception exc)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"error = {response.ReasonPhrase}");
+                    Console.WriteLine($"error = {exc.Message}, response = '{json}'");
                 }
-            }
-            catch(Exception exc)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"error = {exc.Message}");
-            }
 
-            return default;
+                // request probably failed because open XBL limited the request rate, so give it some time
+                System.Threading.Thread.Sleep(10000);
+            }
+            while (retries++ < MaxHttpRetries);
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\nMaximum number of allowed retries (={MaxHttpRetries}) exceeded. Aborting program execution!");
+            throw new InvalidOperationException("retries exceeded");
         }
 
         /// <summary>
