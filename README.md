@@ -12,6 +12,8 @@ The ten best achievement hunters in the week will be awarded points based on the
 
 The weekly tracking will happen around 06:20AM on Monday UTC and cover the last 7 days.
 
+Whoever had the most Gamerscore in the featured monthly game earns 100 points. If two or more people happen to share the same amount of Gamerscore in said game, they will all get the 100 points.
+
 The ten best hunters in the month will also be awarded points based on their position. Whoever earns the most gamerscore during the month will gain 100 points, the second place will gain 90 points, and so on. Then the ranking will reset again and a new month will begin. If two or more users have the same gamerscore gains in the last week they get the same place and points.
 
 ## Usage
@@ -66,3 +68,16 @@ i.e. `XboxeraLeaderboard.exe --monthly ./doc/scores`
 This is also the behavior used by the *monthly* GitHub action which runs every first day of the month at 06:40 UTC. This action writes a new month.csv and a new monthly GitHub Page with all the information for a forum post.
 
 [![Generate monthly leaderboard](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/monthly.yml/badge.svg)](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/monthly.yml)
+
+### Rank the monthly featured game
+
+Calculated who had the most Gamerscore for the monthly featured game and awards them 100 points for the the global leaderboard. Note: the specified name of the game has to be the _exact_ title on Xbox Live. If the title contains spaces, enclose the game name on the commandline with ".
+
+`XboxeraLeaderboard.exe --game=$featured-game $scores-subdir`
+
+|Parameter|Description|
+|---------|-----------|
+|--game=$featured-game|indicates the featured game to scan all users and to write the file for the game as $featuredgame.csv in the monthly folder|
+|$scores-subdir|directory structure with all weekly and monthly csv files grouped by month|
+
+i.e. `XboxeraLeaderboard.exe --game="Dragon Quest Builders 2" ./doc/scores`
