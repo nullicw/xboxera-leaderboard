@@ -1,4 +1,4 @@
-[![.NET build](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/dotnet-build.yml/badge.svg?branch=main)](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/dotnet-build.yml)
+[![.NET build](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/dotnet-build.yml/badge.svg?branch=main)](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/dotnet-build.yml) [![stats](https://img.shields.io/badge/stats-archived-brightgreen)](https://nullicw.github.io/xboxera-leaderboard/)
 
 # XboxEra Leaderboard
 
