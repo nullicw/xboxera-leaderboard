@@ -6,6 +6,11 @@ on:
     - cron:  '40 6 1 * *'
   workflow_dispatch:
     branches: [ main ]
+    inputs:
+      game:
+        description: 'name of monthly game'
+        required: false
+        default: '=\u0022Dragon Quest Builders 2\u0022'
 
 jobs:
   build:
@@ -25,7 +30,7 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Generate weekly leaderboard
-      run: dotnet run --configuration Release --monthly ./docs/scores
+      run: dotnet run --configuration Release --monthly${{ github.event.inputs.game }} ./docs/scores
     - name: Checkin new stats
       uses: EndBug/add-and-commit@v7
       with:
