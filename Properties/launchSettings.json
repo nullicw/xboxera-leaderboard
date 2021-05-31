@@ -2,7 +2,7 @@
   "profiles": {
     "XboxeraLeaderboard": {
       "commandName": "Project",
-      "commandLineArgs": " --game=\"Dragon Quest Builders 2\" ../../../docs/scores"
+      "commandLineArgs": " --monthly ../../../docs/scores"
     }
   }
 }

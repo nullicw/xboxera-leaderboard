@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using System;
 using System.Collections.Generic;
@@ -11,12 +12,13 @@ using static System.Math;
 namespace XboxeraLeaderboard
 {
     /// <summary>
-    /// for parsing the open XBL api JSON response
+    /// for parsing the open XBL api JSON response and local JSON Files
     /// </summary>
     internal record OpenXblSettings(string Id, string Value);
     internal record OpenXblTitle(long TitleId, string Name);
     internal record OpenXblAchievement(string ProgressState, OpenXblReward[] Rewards);
     internal record OpenXblReward(int Value);
+    internal record ScanSettings(int Week, string Date, string MonthlyGame);
 
     internal record Ranking(string User, string Gamertag, long Xuid, int Rank = 0, int InitialGs = 0, int FinalGs = 0, int Gains = 0, int Points = 0, int InitialPoints = 0, int NewPoints = 0);
 
@@ -24,7 +26,7 @@ namespace XboxeraLeaderboard
     {
         private const int                MaxHttpRetries         = 3;
         private const char               CsvSeparator           = ';';
-        private const string             StatsFilename          = "lastscanstats.txt";
+        private const string             StatsFilename          = "scansettings.json";
 
         private const string OpenXblPlayerStats  = "https://xbl.io/api/v2/account";
         private const string OpenXblPlayerTitles = "https://xbl.io/api/v2/achievements/player";
@@ -58,7 +60,9 @@ namespace XboxeraLeaderboard
         /// - if the caller specifies option --weekly the programm scans the path for the last
         ///   weekly file, calculates the weekly diff and writes the new weekly and global scores
         ///   to a new file in the path. it also writes a second text file in Discourse format.
-        /// - if the caller specifies option --monthly the programm scans the path for the last
+        /// - if the caller specifies option --monthly the programm first scans all users for
+        ///   the highest score for the monthly game (this games name is either specified on the
+        ///   commandline or in lastscanstats.txt). The the program searches the path for the last
         ///   monthly file, calculates the monthly diff and writes the new monthly and global scores
         ///   to a new file in the path. it also writes a second text file in Discourse format.
         /// </summary>
@@ -73,76 +77,72 @@ namespace XboxeraLeaderboard
                 Console.WriteLine("usage:");
                 Console.WriteLine("XboxeraLeaderboard.exe $lastweek-filename $thisweek-filename");
                 Console.WriteLine("XboxeraLeaderboard.exe --weekly $scores-path");
-                Console.WriteLine("XboxeraLeaderboard.exe --monthly $scores-path");
-                Console.WriteLine("XboxeraLeaderboard.exe --game=\"game-title\" $scores-path");
+                Console.WriteLine("XboxeraLeaderboard.exe --monthly(=\"game-title\") $scores-path");
                 Console.WriteLine("i.e. XboxeraLeaderboard.exe week31.csv week32.csv");
                 Console.WriteLine("  or XboxeraLeaderboard.exe --weekly ./docs/scores");
+
+                return;
             }
-            else
+
+            // directory structure: ./doc/scoring/lastscanstats.txt
+            //                                   /YYYY-MM/month.csv
+            //                                            week1.csv
+            //                                            week1.txt
+            //                                            week2.csv
+            //                                            week2.txt
+            //                                            ...
+            // ./doc/scoring == rootDir
+
+            var rootDir  = Path.GetFullPath(args[1]);
+            var settings = JsonConvert.DeserializeObject<ScanSettings>(File.ReadAllText(Path.Combine(rootDir, StatsFilename)));
+
+            if (args[0] == "--weekly")
             {
-                // directory structure: ./doc/scoring/lastscanstats.txt
-                //                                   /YYYY-MM/month.csv
-                //                                            week1.csv
-                //                                            week1.txt
-                //                                            week2.csv
-                //                                            week2.txt
-                //                                            ...
-                // ./doc/scoring == rootDir
+                LatestWeeklyCsv(rootDir, settings, out string currentMonthDir, out string fileWithLatestPoints);
 
-                var rootDir = Path.GetFullPath(args[1]);
-
-                if(args[0] == "--monthly")
+                IEnumerable<Ranking> users;
+                if(!File.Exists(fileWithLatestPoints))
                 {
-                    var currentMonthDir = LatestDir(rootDir);
-                    var lastMonthDir    = LatestDir(rootDir, 1);
+                    var latestPoints = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"month.csv"))
+                                       .ToDictionary(m => m.Xuid, m => m.InitialPoints);
 
-                    var discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
-                    WriteMonthlyGithubPage(rootDir, Path.GetFileName(currentMonthDir), discourse);
-                }
-                else if(args[0].StartsWith("--game="))
-                {
-                    var gameName = args[0][7..].Trim('\"').ToLower();
-
-                    LatestWeeklyCsv(rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints);
-                    var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
-
-                    var discourse = MonthlyGame(currentMonthDir, gameName, users);
-                    WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), gameName, discourse);
-                }
-                else if(args[0] == "--weekly")
-                {
-                    LatestWeeklyCsv(rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints);
-
-                    IEnumerable<Ranking> users;
-                    if(!File.Exists(fileWithLatestPoints))
-                    {
-                        var latestPoints = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"month.csv"))
-                                           .ToDictionary(m => m.Xuid, m => m.InitialPoints);
-
-                        users = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"week{weekNr}.csv"))
-                                .Select(u => u with { InitialPoints = latestPoints[u.Xuid] });
-                    }
-                    else
-                    {
-                        users = ReadCsv(fileWithLatestPoints);
-                    }
-
-                    weekNr++;
-                    var discourse = Weekly(users, Path.Combine(currentMonthDir, $"week{weekNr}.csv"));
-                    WriteWeeklyGithubPage(rootDir, Path.GetFileName(currentMonthDir), weekNr, discourse);
-                    WriteNewStatsFile(rootDir, weekNr);
+                    users = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"week{settings.Week}.csv"))
+                            .Select(u => u with { InitialPoints = latestPoints[u.Xuid] });
                 }
                 else
                 {
-                    var inputCsv  = ReadCsv(args[0]);
-                    var discourse = Weekly(inputCsv, args[1]);
+                    users = ReadCsv(fileWithLatestPoints);
+                }
 
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine();
-                    foreach(var line in discourse)
-                    {
-                        Console.WriteLine(line);
-                    }
+                settings = settings with { Week = settings.Week + 1 };
+                var discourse = Weekly(users, Path.Combine(currentMonthDir, $"week{settings.Week}.csv"));
+                WriteWeeklyGithubPage(rootDir, Path.GetFileName(currentMonthDir), settings.Week, discourse);
+                UpdateSettingsFile(rootDir, settings);
+            }
+            else if(args[0].StartsWith("--monthly"))
+            {
+                var monthlyGame = args[0].Length > 9 ? args[0][10..].Trim('\"').ToLower() : settings.MonthlyGame.Trim().ToLower();
+
+                LatestWeeklyCsv(rootDir, settings, out string currentMonthDir, out string fileWithLatestPoints);
+                var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
+
+                var discourse = MonthlyGame(currentMonthDir, monthlyGame, users);
+                WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), monthlyGame, discourse);
+
+                var lastMonthDir = LatestDir(rootDir, 1);
+                discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
+                WriteMonthlyGithubPage(rootDir, Path.GetFileName(currentMonthDir), discourse);
+            }
+            else
+            {
+                var inputCsv  = ReadCsv(args[0]);
+                var discourse = Weekly(inputCsv, args[1]);
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine();
+                foreach(var line in discourse)
+                {
+                    Console.WriteLine(line);
                 }
             }
         }
@@ -163,15 +163,7 @@ namespace XboxeraLeaderboard
             // writing output (csv + discourse)
 
             WriteCsv(thisWeekFilename, weeklyRanking);
-
-            var toDiscourseWeekly = weeklyRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
-            var toDiscourseGlobal = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
-
-            return DiscoursePeriodHeader.Concat(toDiscourseWeekly)
-                                        .Concat(new[] { "\n" })
-                                        .Concat(DiscourseSummaryHeader)
-                                        .Concat(toDiscourseGlobal)
-                                        .ToArray();
+            return CreateDiscourseMarkdown(weeklyRanking, globalRanking);
         }
 
         private static int WeeklyPoints(int rank) => Max(0, 10 - rank);
@@ -212,15 +204,7 @@ namespace XboxeraLeaderboard
             // writing output (csv + discourse)
 
             WriteCsv(Path.Combine(currentMonthDir, "month.csv"), monthlyRanking);
-
-            var toDiscourseMonthly = monthlyRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
-            var toDiscourseGlobal  = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
-
-            return DiscoursePeriodHeader.Concat(toDiscourseMonthly)
-                                        .Concat(new[] { "\n" })
-                                        .Concat(DiscourseSummaryHeader)
-                                        .Concat(toDiscourseGlobal)
-                                        .ToArray();
+            return CreateDiscourseMarkdown(monthlyRanking, globalRanking);
         }
 
         private static int MonthlyPoints(int rank) => Max(0, 100 - 10 * rank);
@@ -243,6 +227,8 @@ namespace XboxeraLeaderboard
             //     }, {
             //     ...
 
+            Console.WriteLine($"searching for any user who played '{gameName}' to get its Xbox Title-ID");
+
             var gameTitleId = users.Select(u => CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}",
                                                                j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
                                                 .FirstOrDefault(t => t.Name.ToLower() == gameName)
@@ -264,6 +250,8 @@ namespace XboxeraLeaderboard
             //         "type": "Gamerscore",
             //       }, ...
 
+            Console.WriteLine($"get gamerscores of title {gameTitleId} for all users");
+
             var gamerscoresForTitle = users.Select(u => u with { Gains = CallOpenXblApi($"{OpenXblPlayerTitles}/{u.Xuid}/title/{gameTitleId}",
                                                                                        j => j["achievements"].Select(a => a.ToObject<OpenXblAchievement>()))
                                                                          .Where(a => a.ProgressState == "Achieved")
@@ -282,31 +270,22 @@ namespace XboxeraLeaderboard
             // writing output (csv + discourse)
 
             WriteCsv(Path.Combine(currentMonthDir, $"{GameToFilename(gameName)}.csv"), titleRanking);
-
-            var toDiscourseTitle  = titleRanking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
-            var toDiscourseGlobal = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
-
-            return DiscoursePeriodHeader.Concat(toDiscourseTitle)
-                                        .Concat(new[] { "\n" })
-                                        .Concat(DiscourseSummaryHeader)
-                                        .Concat(toDiscourseGlobal)
-                                        .ToArray();
+            return CreateDiscourseMarkdown(titleRanking, globalRanking);
         }
 
         private static string GameToFilename(string title) => title.Replace(" ", "");
 
         private static IEnumerable<Ranking> ReadAllNewGamerscores(IEnumerable<Ranking> users)
         {
-            return users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Gamertag, u.Xuid)})
+            Console.WriteLine($"get current gamerscore for all users");
+
+            return users.Select(u => u with { FinalGs = ReadCurrentGamerScore(u.Xuid)})
                         .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) })
                         .ToArray();
         }
 
-        private static int ReadCurrentGamerScore(string gamerTag, long xuid)
+        private static int ReadCurrentGamerScore(long xuid)
         {
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write($"calling open XBL api for {gamerTag} .... ");
-
             // calls open XBL api to get the gamerscore for a Xbox User Id(XUID)
             //
             // response JSON looks like
@@ -336,7 +315,10 @@ namespace XboxeraLeaderboard
         /// </summary>
         private static T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
         {
-            int    retries = 0;
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write($"calling open XBL api for {openXblUrl} .... ");
+
+            int retries = 0;
             string json    = string.Empty;
 
             do
@@ -412,13 +394,10 @@ namespace XboxeraLeaderboard
                                                                                .Skip(skip)
                                                                                .First();
 
-        private static void LatestWeeklyCsv(string rootDir, out int weekNr, out string currentMonthDir, out string fileWithLatestPoints)
+        private static void LatestWeeklyCsv(string rootDir, ScanSettings settings, out string currentMonthDir, out string fileWithLatestPoints)
         {
-            var stats = File.ReadAllLines(Path.Combine(rootDir, StatsFilename));
-            weekNr = int.Parse(stats.First(l => l.StartsWith("week="))[5..]);
-
-            currentMonthDir = LatestDir(rootDir);
-            fileWithLatestPoints = Path.Combine(currentMonthDir, $"week{weekNr}.csv");
+            currentMonthDir      = LatestDir(rootDir);
+            fileWithLatestPoints = Path.Combine(currentMonthDir, $"week{settings.Week}.csv");
         }
 
         private static IEnumerable<Ranking> ReadCsv(string filename)
@@ -439,15 +418,13 @@ namespace XboxeraLeaderboard
             Console.WriteLine($"wrote csv file {filename}");
         }
 
-        private static void WriteNewStatsFile(string rootDir, int weekNumber)
+        private static void UpdateSettingsFile(string rootDir, ScanSettings settings)
         {
-            var filename = Path.Combine(rootDir, StatsFilename);
-            File.WriteAllLines(filename,
-                               new string[] {
-                                   $"week={weekNumber}",
-                                   $"date={DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)"
-                               });
-            Console.WriteLine($"wrote stats file {filename}");
+            settings = settings with { Date = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)" };
+            File.WriteAllText(Path.Combine(rootDir, StatsFilename),
+                              JsonConvert.SerializeObject(settings, Formatting.Indented));
+
+            Console.WriteLine($"updated stats file");
         }
 
         private static void WriteWeeklyGithubPage(string rootDir, string currentDir, int weekNumber, string[] discourse)
@@ -470,13 +447,13 @@ namespace XboxeraLeaderboard
             Console.WriteLine($"wrote github page {filename}");
         }
 
-        private static void WriteMonthlyGameGithubPage(string rootDir, string currentDir, string gameName, string[] discourse)
+        private static void WriteMonthlyGameGithubPage(string rootDir, string currentMonth, string gameName, string[] discourse)
         {
             var filename = Path.Combine(Directory.GetParent(rootDir).FullName,
                                         "_posts",
                                         $"{DateTime.UtcNow:yyyy-MM-dd}-scan-game-{GameToFilename(gameName)}.md");
             File.WriteAllLinesAsync(filename,
-                                    BuildGithubPage("monthly", $"Game {gameName}", $"scores/{currentDir}/{GameToFilename(gameName)}.csv", discourse));
+                                    BuildGithubPage("monthly", $"Game {gameName} for {currentMonth}", $"scores/{currentMonth}/{GameToFilename(gameName)}.csv", discourse));
             Console.WriteLine($"wrote github page {filename}");
         }
 
@@ -498,6 +475,18 @@ namespace XboxeraLeaderboard
                                   "```" }
                 .Concat(discourseContent)
                 .Concat(new[] { "```" });
+        }
+
+        private static string[] CreateDiscourseMarkdown(IEnumerable<Ranking> ranking, IEnumerable<Ranking> globalRanking)
+        {
+            var markdownTableForRanking = ranking.Select((r, i) => $"|{r.Rank}.|{(i < 10 ? '@' : ' ')}{r.User}|{r.Gamertag}|{r.InitialGs}|{r.FinalGs}|{r.Gains}|{r.Points}|");
+            var markdownTableForGlobal  = globalRanking.Select(r => $"|{r.Rank}.|{r.User}|{r.Gamertag}|{r.NewPoints}|");
+
+            return DiscoursePeriodHeader.Concat(markdownTableForRanking)
+                                        .Concat(new[] { "\n" })
+                                        .Concat(DiscourseSummaryHeader)
+                                        .Concat(markdownTableForGlobal)
+                                        .ToArray();
         }
     }
 }
