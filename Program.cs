@@ -96,7 +96,7 @@ namespace XboxeraLeaderboard
             var rootDir  = Path.GetFullPath(args[1]);
             var settings = JsonConvert.DeserializeObject<ScanSettings>(File.ReadAllText(Path.Combine(rootDir, StatsFilename)));
 
-            if (args[0] == "--weekly")
+            if(args[0] == "--weekly")
             {
                 LatestWeeklyCsv(rootDir, settings, out string currentMonthDir, out string fileWithLatestPoints);
 
@@ -121,16 +121,20 @@ namespace XboxeraLeaderboard
             }
             else if(args[0].StartsWith("--monthly"))
             {
+                LatestWeeklyCsv(rootDir, settings, out string currentMonthDir, out string fileWithLatestPoints);
+
                 var monthlyGame = args[0].Length > 9 ? args[0][10..].Trim('\"').ToLower() : settings.MonthlyGame.Trim().ToLower();
 
-                LatestWeeklyCsv(rootDir, settings, out string currentMonthDir, out string fileWithLatestPoints);
-                var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
+                if(!string.IsNullOrWhiteSpace(monthlyGame))
+                {
+                    var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
 
-                var discourse = MonthlyGame(currentMonthDir, monthlyGame, users);
-                WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), monthlyGame, discourse);
+                    var discourseMg = MonthlyGame(currentMonthDir, monthlyGame, users);
+                    WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), monthlyGame, discourseMg);
+                }
 
                 var lastMonthDir = LatestDir(rootDir, 1);
-                discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
+                var discourse = Monthly(rootDir, lastMonthDir, currentMonthDir);
                 WriteMonthlyGithubPage(rootDir, Path.GetFileName(currentMonthDir), discourse);
             }
             else
@@ -364,7 +368,7 @@ namespace XboxeraLeaderboard
                 // request probably failed because open XBL limited the request rate, so give it some time
                 System.Threading.Thread.Sleep(10000);
             }
-            while (retries++ < MaxHttpRetries);
+            while(retries++ < MaxHttpRetries);
 
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"\nMaximum number of allowed retries (={MaxHttpRetries}) exceeded. Aborting program execution!");

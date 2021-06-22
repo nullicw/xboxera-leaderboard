@@ -28,8 +28,8 @@ This scans Xbox for the current gamerscore, calculates the weekly gamerscore gai
 
 |Parameter|Description|
 |---------|-----------|
-|$lastweek-filename|the name of the input csv file containing all data from last week including the XUIDs for all gamertags and their previous total leaderboard points (see week31.csv for an example)|
-|$nextweek-filename|the name of the output csv file the tool should writes. Has the same format as $lastweek-filename. This file is to be used as the input for the next weekly run. Contains the new total gamerscore, the gains since last run, the weekly points ranking and the new total leaderboard points.|
+|$lastweek-filename|The name of the input csv file containing all data from last week including the XUIDs for all gamertags and their previous total leaderboard points (see week31.csv for an example)|
+|$nextweek-filename|The name of the output csv file the tool should writes. Has the same format as $lastweek-filename. This file is to be used as the input for the next weekly run. Contains the new total gamerscore, the gains since last run, the weekly points ranking and the new total leaderboard points.|
 
 i.e. `XboxeraLeaderboard.exe week31.csv week32.csv`
 
@@ -43,8 +43,8 @@ Behaves mostly the same as the manual weekly run, but operates with a fixed dire
 
 |Parameter|Description|
 |---------|-----------|
-|--weekly|indicates to calculate the weekly gamerscore gains and write them to the file structure in a new weekXYZ.csv file. Updates $scores-subdir/lastscanstats.txt.|
-|$scores-subdir|directory structure with all weekly csv files grouped by month|
+|--weekly|Indicates to calculate the weekly gamerscore gains and write them to the file structure in a new weekXYZ.csv file. Updates $scores-subdir/lastscanstats.txt.|
+|$scores-subdir|Directory structure with all weekly csv files grouped by month|
 
 i.e. `XboxeraLeaderboard.exe --weekly ./doc/scores`
 
@@ -54,30 +54,18 @@ This is also the behavior used by the *weekly* GitHub action which runs every Mo
 
 ### Scheduled monthly run
 
-Behaves mostly the same as the scheduled weekly run. Adds all points in weekly.csv files and points from special events like a game of the month to the global leaderboard.
+Behaves mostly the same as the scheduled weekly run. Adds all points in weekly.csv files and points from special events like a game of the month to the global leaderboard. Adds optional points for the monthly featured game if specified. 
 
-`XboxeraLeaderboard.exe --monthly $scores-subdir`
+`XboxeraLeaderboard.exe --monthly=$monthly-game $scores-subdir`
 
 |Parameter|Description|
 |---------|-----------|
-|--monthly|indicates to calculate the monthly gamerscore gains and write them to the file structure in a new month.csv file. Updates $scores-subdir/lastscanstats.txt.|
-|$scores-subdir|directory structure with all weekly and monthly csv files grouped by month|
+|--monthly|Indicates to calculate the monthly gamerscore gains and write them to the file structure in a new month.csv file. Updates $scores-subdir/lastscanstats.txt.|
+|$monthly-game|Optional name of the monthly featured game. Will be calculated before the summation of all weekly scores for the monthly leaderboard. If ommited the program will use the $MonthlyGame value from /docs/scores/scansettings.json |
+|$scores-subdir|Directory structure with all weekly and monthly csv files grouped by month|
 
-i.e. `XboxeraLeaderboard.exe --monthly ./doc/scores`
+i.e. `XboxeraLeaderboard.exe --monthly="Dragon Quest Builders 2" ./doc/scores`
 
 This is also the behavior used by the *monthly* GitHub action which runs every first day of the month at 06:40 UTC. This action writes a new month.csv and a new monthly GitHub Page with all the information for a forum post.
 
 [![Generate monthly leaderboard](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/monthly.yml/badge.svg)](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/monthly.yml)
-
-### Rank the monthly featured game
-
-Calculated who had the most Gamerscore for the monthly featured game and awards them 100 points for the the global leaderboard. Note: the specified name of the game has to be the _exact_ title on Xbox Live. If the title contains spaces, enclose the game name on the commandline with ".
-
-`XboxeraLeaderboard.exe --game=$featured-game $scores-subdir`
-
-|Parameter|Description|
-|---------|-----------|
-|--game=$featured-game|indicates the featured game to scan all users and to write the file for the game as $featuredgame.csv in the monthly folder|
-|$scores-subdir|directory structure with all weekly and monthly csv files grouped by month|
-
-i.e. `XboxeraLeaderboard.exe --game="Dragon Quest Builders 2" ./doc/scores`
