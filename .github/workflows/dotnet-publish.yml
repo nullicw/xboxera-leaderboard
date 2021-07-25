@@ -16,13 +16,14 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 5.0.x
+        dotnet-version: '6.0'
+        include-prerelease: True
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
     - name: Publish win-x86
-      run: dotnet publish --configuration Release --framework net5.0 --output ./publish --runtime win-x86 --self-contained true -p:PublishTrimmed=true -p:PublishSingleFile=true
+      run: dotnet publish --configuration Release --framework net6.0 --output ./publish --runtime win-x86 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:TrimMode=Link -p:IncludeNativeLibrariesForSelfExtract=true
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with: 
