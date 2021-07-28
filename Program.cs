@@ -158,7 +158,7 @@ namespace XboxeraLeaderboard
             // weekly and new global ranking (users with same gains have to be ranked the same!)
             // and directly add points to total leaderboard points
 
-            var weeklyRanking = Rank(newGamerscores, s => s.Gains, r => WeeklyPoints(r))
+            var weeklyRanking = Rank(newGamerscores, s => s.Gains, (r, s) => Score(r, s))
                                 .Select(r => r.score with { Rank = r.rank, Points = r.points, NewPoints = r.score.InitialPoints + r.points })
                                 .ToArray();
 
@@ -169,8 +169,6 @@ namespace XboxeraLeaderboard
             WriteCsv(thisWeekFilename, weeklyRanking);
             return CreateDiscourseMarkdown(weeklyRanking, globalRanking);
         }
-
-        private static int WeeklyPoints(int rank) => Max(0, 10 - rank);
 
         private static string[] Monthly(string rootDir, string lastMonthDir, string currentMonthDir)
         {
@@ -188,7 +186,7 @@ namespace XboxeraLeaderboard
             // global ranking by new total leaderboard points
             // new_leaderboard_points = last_month_points + sum(weekly_points_of_month) + monthlyRanking
 
-            var monthlyRanking = Rank(newGamerscores, s => s.Gains, r => MonthlyPoints(r))
+            var monthlyRanking = Rank(newGamerscores, s => s.Gains, (r, s) => Score(r, s))
                                  .Select(r => r.score with {
                                      Rank = r.rank,
                                      Points = r.points,
@@ -210,8 +208,6 @@ namespace XboxeraLeaderboard
             WriteCsv(Path.Combine(currentMonthDir, "month.csv"), monthlyRanking);
             return CreateDiscourseMarkdown(monthlyRanking, globalRanking);
         }
-
-        private static int MonthlyPoints(int rank) => Max(0, 100 - 10 * rank);
 
         private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Max(0, gamerscoreNow - gamerscoreBefore);
 
@@ -264,7 +260,7 @@ namespace XboxeraLeaderboard
 
             // now ranking on gains for the montly game but only the best with the most gamerscore gains get points in this case
 
-            var titleRanking = Rank(gamerscoresForTitle, s => s.Gains, r => MonthlyPoints(r))
+            var titleRanking = Rank(gamerscoresForTitle, s => s.Gains, (r, s) => Score(r, s))
                                .Select(r => r.rank == 1 ? r.score with { Rank = 1, FinalGs = r.score.Gains, Points = r.points, NewPoints = r.score.InitialPoints + r.points } :
                                                           r.score with { Rank = 2, FinalGs = r.score.Gains, Points = 0,        NewPoints = r.score.InitialPoints })
                                .ToArray();
@@ -378,10 +374,12 @@ namespace XboxeraLeaderboard
         /// <summary>
         /// ranks a sequence and scores it by rank (elements with same score get same rank)
         /// </summary>
-        private static IEnumerable<(T score, int rank, int points)> Rank<T>(IEnumerable<T> toRank, Func<T, int> rankBy, Func<int, int> scoring)
+        private static IEnumerable<(T score, int rank, int points)> Rank<T>(IEnumerable<T> toRank,
+                                                                            Func<T, int> rankBy,
+                                                                            Func<int, T, int> scoring)
         {
             var ranked = toRank.OrderByDescending(rankBy)
-                               .Select((s, i) => (rank: i + 1, points: scoring(i), s));
+                               .Select((s, i) => (rank: i + 1, points: scoring(i, s), s));
 
             var grouped = ranked.GroupBy(r => rankBy(r.s))
                                 .OrderByDescending(g => g.Key)
@@ -391,7 +389,13 @@ namespace XboxeraLeaderboard
             return grouped;
         }
 
+        /// <summary>
+        /// scores 
+        /// </summary>
+        private static int Score(int rank, Ranking r) => r.Gains > 0 ? Max(1, 50 - 2 * rank) : 0;
+
         private static T Identity<T>(T t) => t;
+        private static T Identity<T, U>(T t, U u) => t;
 
         private static string LatestDir(string path, int skip = 0) => Directory.EnumerateDirectories(path)
                                                                                .OrderByDescending(s => s)
