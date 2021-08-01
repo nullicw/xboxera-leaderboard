@@ -277,7 +277,7 @@ namespace XboxeraLeaderboard
             return CreateDiscourseMarkdown(titleRanking, globalRanking);
         }
 
-        private static string GameToFilename(string title) => title.Replace(" ", "");
+        private static string GameToFilename(string title) => title.Replace(" ", "").Replace(":", "");
 
         private static IEnumerable<Ranking> ReadAllNewGamerscores(IEnumerable<Ranking> users)
         {
