@@ -104,14 +104,15 @@ namespace XboxeraLeaderboard
                 if(!File.Exists(fileWithLatestPoints))
                 {
                     var latestPoints = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"month.csv"))
-                                       .ToDictionary(m => m.Xuid, m => m.InitialPoints);
+                                       .ToDictionary(m => m.Xuid, m => m.NewPoints);
 
                     users = ReadCsv(Path.Combine(LatestDir(rootDir, 1), $"week{settings.Week}.csv"))
-                            .Select(u => u with { InitialPoints = latestPoints[u.Xuid] });
+                            .Select(u => u with { InitialGs = u.FinalGs, InitialPoints = latestPoints[u.Xuid] });
                 }
                 else
                 {
-                    users = ReadCsv(fileWithLatestPoints);
+                    users = ReadCsv(fileWithLatestPoints)
+                            .Select(u => u with { InitialGs = u.FinalGs, InitialPoints = u.NewPoints });
                 }
 
                 settings = settings with { Week = settings.Week + 1 };
@@ -127,7 +128,9 @@ namespace XboxeraLeaderboard
 
                 if(!string.IsNullOrWhiteSpace(monthlyGame))
                 {
-                    var users = ReadCsv(fileWithLatestPoints).Select(u => u with { InitialGs = 0, Points = 0 }).ToArray();
+                    var users = ReadCsv(fileWithLatestPoints)
+                                .Select(u => u with { InitialGs = 0, Points = 0, InitialPoints = u.NewPoints })
+                                .ToArray();
 
                     var discourseMg = MonthlyGame(currentMonthDir, monthlyGame, users);
                     WriteMonthlyGameGithubPage(rootDir, Path.GetFileName(currentMonthDir), monthlyGame, discourseMg);
@@ -139,7 +142,8 @@ namespace XboxeraLeaderboard
             }
             else
             {
-                var inputCsv  = ReadCsv(args[0]);
+                var inputCsv  = ReadCsv(args[0])
+                                .Select(u => u with { InitialGs = u.FinalGs, InitialPoints = u.NewPoints});
                 var discourse = Weekly(inputCsv, args[1]);
 
                 Console.ForegroundColor = ConsoleColor.White;
@@ -172,7 +176,8 @@ namespace XboxeraLeaderboard
 
         private static string[] Monthly(string rootDir, string lastMonthDir, string currentMonthDir)
         {
-            var users          = ReadCsv(Path.Combine(lastMonthDir, "month.csv"));
+            var users = ReadCsv(Path.Combine(lastMonthDir, "month.csv"))
+                        .Select(u => u with { InitialGs = u.FinalGs, InitialPoints = u.NewPoints });
             var newGamerscores = ReadAllNewGamerscores(users);
 
             // sum all weekly points (and extra points for game of the month) for this month
@@ -415,7 +420,9 @@ namespace XboxeraLeaderboard
             return file.Where(l => !string.IsNullOrWhiteSpace(l))
                        .Skip(1) // header
                        .Select(l => l.Split(CsvSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                       .Select(l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]), InitialGs: int.Parse(l[5]), Points: int.Parse(l[7]), InitialPoints: int.Parse(l[9])));
+                       .Select(l => new Ranking(User: l[1], Gamertag: l[2], Xuid: long.Parse(l[3]),
+                                                InitialGs: int.Parse(l[4]), FinalGs: int.Parse(l[5]), Gains: int.Parse(l[6]),
+                                                Points: int.Parse(l[7]), InitialPoints: int.Parse(l[8]), NewPoints: int.Parse(l[9])));
         }
 
         private static void WriteCsv(string filename, IEnumerable<Ranking> ranking)
