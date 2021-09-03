@@ -163,7 +163,10 @@ namespace XboxeraLeaderboard
             // and directly add points to total leaderboard points
 
             var weeklyRanking = Rank(newGamerscores, s => s.Gains, (r, s) => Score(r, s))
-                                .Select(r => r.score with { Rank = r.rank, Points = r.points, NewPoints = r.score.InitialPoints + r.points })
+                                .Select(r => r.score with {
+                                    Rank = r.rank,
+                                    Points = r.points,
+                                    NewPoints = r.score.InitialPoints + r.points })
                                 .ToArray();
 
             var globalRanking = Rank(weeklyRanking, s => s.NewPoints, Identity).Select(r => r.score with { Rank = r.rank });
@@ -266,9 +269,12 @@ namespace XboxeraLeaderboard
             // now ranking on gains for the montly game but only the best with the most gamerscore gains get points in this case
 
             var titleRanking = Rank(gamerscoresForTitle, s => s.Gains, (r, s) => Score(r, s))
-                               .Select(r => r.rank == 1 ? r.score with { Rank = 1, FinalGs = r.score.Gains, Points = r.points, NewPoints = r.score.InitialPoints + r.points } :
-                                                          r.score with { Rank = 2, FinalGs = r.score.Gains, Points = 0,        NewPoints = r.score.InitialPoints })
-                               .ToArray();
+                                .Select(r => r.score with {
+                                    Rank = r.rank,
+                                    FinalGs = r.score.Gains,
+                                    Points = r.points,
+                                    NewPoints = r.score.InitialPoints + r.points })
+                                .ToArray();
 
             var globalRanking = Rank(titleRanking, s => s.NewPoints, Identity).Select(r => r.score with { Rank = r.rank });
 
