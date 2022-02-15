@@ -41,7 +41,7 @@ internal class ScoresArchive
     {
         var filesWithPoints = Directory.GetFiles(CurrentDir, "*.csv");
 
-        if (!filesWithPoints.Any())
+        if(!filesWithPoints.Any())
         {
             filesWithPoints = Directory.GetFiles(LatestDir(RootDir, 1), "*.csv");
         }
@@ -55,7 +55,7 @@ internal class ScoresArchive
     {
         var latestWeeklyCsv = Path.Combine(CurrentDir, $"week{weekNr}.csv");
 
-        if (!File.Exists(latestWeeklyCsv))
+        if(!File.Exists(latestWeeklyCsv))
         {
             latestWeeklyCsv = Path.Combine(LatestDir(RootDir, 1), $"week{weekNr}.csv");
         }

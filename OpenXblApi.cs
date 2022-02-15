@@ -41,6 +41,14 @@ internal class OpenXblApi
     /// </summary>
     private const string OpenXBLKey = "skooks048gw80ks0co8wk4ow0k0ggksoks8";
 
+    /// <summary>
+    /// Returns the complete account information for a single user profile in JSON format.
+    /// </summary>
+    public static string DumpAccountInfo(long xuid)
+    {
+        return CallOpenXblApi($"{OpenXblPlayerStats}/{xuid}", (json) => json.ToString());
+    }
+
     public static int GetCurrentGamerScore(long xuid)
     {
         // calls open XBL api to get the gamerscore for a Xbox User Id(XUID)
@@ -138,7 +146,7 @@ internal class OpenXblApi
 
                 var response = httpClient.Send(request);
 
-                if (response.IsSuccessStatusCode)
+                if(response.IsSuccessStatusCode)
                 {
                     json = response.Content.ReadAsStringAsync().Result;
                     var result = parse(JObject.Parse(json));
@@ -157,7 +165,7 @@ internal class OpenXblApi
                     Console.WriteLine($"error = {response.ReasonPhrase}");
                 }
             }
-            catch (Exception exc)
+            catch(Exception exc)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"error = {exc.Message}, response = '{json}'");
@@ -166,7 +174,7 @@ internal class OpenXblApi
             // request probably failed because open XBL limited the request rate, so give it some time
             System.Threading.Thread.Sleep(10000);
         }
-        while (retries++ < MaxHttpRetries);
+        while(retries++ < MaxHttpRetries);
 
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"\nMaximum number of allowed retries (={MaxHttpRetries}) exceeded. Aborting program execution!");
