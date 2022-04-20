@@ -24,47 +24,32 @@ Clone the repository, compile the Code with VSCode or VS2019 or use the compiled
 
 This scans Xbox for the current gamerscore, calculates the weekly gamerscore gains of each user and ranks them accordingly. It also adds the points to the global leaderboard. Both files are in csv format with ; delimeters.
 
-`XboxeraLeaderboard.exe $lastweek-filename $nextweek-filename`
+`XboxeraLeaderboard.exe weekly $scores-subdir`
 
 |Parameter|Description|
 |---------|-----------|
-|$lastweek-filename|The name of the input csv file containing all data from last week including the XUIDs for all gamertags and their previous total leaderboard points (see week31.csv for an example)|
-|$nextweek-filename|The name of the output csv file the tool should writes. Has the same format as $lastweek-filename. This file is to be used as the input for the next weekly run. Contains the new total gamerscore, the gains since last run, the weekly points ranking and the new total leaderboard points.|
-
-i.e. `XboxeraLeaderboard.exe week31.csv week32.csv`
-
-The csv-Files can't be used directly in forum posts and contain additional information like XUIDs. To make it simpler the scanner outputs the tables to stdout in Discourse's  format. Just copy & paste this to a forum post.
-
-### Scheduled weekly run
-
-Behaves mostly the same as the manual weekly run, but operates with a fixed directory structure inside the repository (./doc/scores).
-
-`XboxeraLeaderboard.exe --weekly $scores-subdir`
-
-|Parameter|Description|
-|---------|-----------|
-|--weekly|Indicates to calculate the weekly gamerscore gains and write them to the file structure in a new weekXYZ.csv file. Updates $scores-subdir/lastscanstats.txt.|
+|weekly|Indicates to calculate the weekly gamerscore gains and write them to the file structure in a new weekXYZ.csv file. Updates $scores-subdir/lastscanstats.txt.|
 |$scores-subdir|Directory structure with all weekly csv files grouped by month|
 
-i.e. `XboxeraLeaderboard.exe --weekly ./doc/scores`
+i.e. `XboxeraLeaderboard.exe weekly ./doc/scores`
 
 This is also the behavior used by the *weekly* GitHub action which runs every Monday at 06:20 UTC. This action writes a new weekyXYZ.csv and a new weekly GitHub Page with all the information for a forum post.
 
 [![Generate weekly leaderboard](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/weekly.yml/badge.svg)](https://github.com/nullicw/xboxera-leaderboard/actions/workflows/weekly.yml)
 
-### Scheduled monthly run
+### Calculate monthly ranking
 
-Behaves mostly the same as the scheduled weekly run. Adds all points in weekly.csv files and points from special events like a game of the month to the global leaderboard. Adds optional points for the monthly featured game if specified. 
+Behaves mostly the same as the weekly calculation. Adds all points in weekly.csv files and points from special events like a game of the month to the global leaderboard. Adds optional points for the monthly featured game if specified. 
 
-`XboxeraLeaderboard.exe --monthly=$monthly-game $scores-subdir`
+`XboxeraLeaderboard.exe monthly [--game $monthly-game] $scores-subdir`
 
 |Parameter|Description|
 |---------|-----------|
-|--monthly|Indicates to calculate the monthly gamerscore gains and write them to the file structure in a new month.csv file. Updates $scores-subdir/lastscanstats.txt.|
+|monthly|Indicates to calculate the monthly gamerscore gains and write them to the file structure in a new month.csv file. Updates $scores-subdir/lastscanstats.txt.|
 |$monthly-game|Optional name of the monthly featured game. Will be calculated before the summation of all weekly scores for the monthly leaderboard. If ommited the program will use the $MonthlyGame value from /docs/scores/scansettings.json |
 |$scores-subdir|Directory structure with all weekly and monthly csv files grouped by month|
 
-i.e. `XboxeraLeaderboard.exe --monthly="Dragon Quest Builders 2" ./doc/scores`
+i.e. `XboxeraLeaderboard.exe monthly --game Bugsnax ./doc/scores`
 
 This is also the behavior used by the *monthly* GitHub action which runs every first day of the month at 06:40 UTC. This action writes a new month.csv and a new monthly GitHub Page with all the information for a forum post.
 
