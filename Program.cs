@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.CommandLine;
 using System.IO;
 using System.Linq;
 
@@ -22,66 +23,86 @@ public class Program
     ///   monthly file, calculates the monthly diff and writes the new monthly and global scores
     ///   to a new file in the path. it also writes a second text file in Discourse format.
     /// </summary>
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
-        if(args.Length != 2)
-        {
-            Console.WriteLine("usage:");
-            Console.WriteLine("XboxeraLeaderboard.exe --weekly(=\"game-title\") $scores-path");
-            Console.WriteLine("XboxeraLeaderboard.exe --monthly(=\"game-title\") $scores-path");
-            Console.WriteLine("  or XboxeraLeaderboard.exe --weekly ./docs/scores");
+        var gameOption = new Option<string>(name: "--game",
+                                            description: "title-id of monthly game",
+                                            getDefaultValue: () => string.Empty);
+        var pathArg = new Argument<string>(name: "path",
+                                           description: "path to scores scores directory",
+                                           getDefaultValue: () => @"./docs/scores");
 
-            return;
-        }
+        var rootCommand = new RootCommand("Batch app for building the weekly or monthly Xboxera leaderboard");
 
-        var rootDir  = Path.GetFullPath(args[1]);
+        var weeklyCommand = new Command("weekly", "generate weekly leaderboard data");
+        weeklyCommand.AddArgument(pathArg);
+        weeklyCommand.AddOption(gameOption);
+        weeklyCommand.SetHandler<string, string>(HandleWeeklyCommand, pathArg, gameOption);
+        rootCommand.AddCommand(weeklyCommand);
+
+        var monthlyCommand = new Command("monthly", "generate monthly leaderboard data");
+        monthlyCommand.AddArgument(pathArg);
+        monthlyCommand.AddOption(gameOption);
+        monthlyCommand.SetHandler<string, string>(HandleMonthlyCommand, pathArg, gameOption);
+        rootCommand.AddCommand(monthlyCommand);
+
+        return rootCommand.Invoke(args);
+    }
+
+    private static void HandleWeeklyCommand(string pathArg, string gameArg)
+    {
+        var rootDir  = Path.GetFullPath(pathArg);
         var scoresDb = new ScoresArchive(rootDir);
         var settings = ScanSettings.Read(rootDir);
 
         var prevGlobalPoints = scoresDb.GetPreviousGlobalPoints();
 
-        if(args[0] == "--weekly")
-        {
-            var ranking = scoresDb.InitRankingWithLastWeeklyScore(settings.Week)
-                          .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value, NewPoints = 0 })
-                          .ToArray();
+        var ranking = scoresDb.InitRankingWithLastWeeklyScore(settings.Week)
+                                .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value, NewPoints = 0 })
+                                .ToArray();
 
-            //if(MonthlyGame(args, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
-            //{
-            //    var gameRanking = RankMonthlyGame(monthlyGame,
-            //                                      ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
-            //                                      scoresDb);
+        //if(MonthlyGame(gameArg, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
+        //{
+        //    var gameRanking = RankMonthlyGame(monthlyGame,
+        //                                      ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
+        //                                      scoresDb);
 
-            //    ranking = ranking.Join(gameRanking, w => w.Xuid, mg => mg.Xuid, (w, mg) => w with { InitialPoints = mg.NewPoints })
-            //                     .ToArray();
-            //}
+        //    ranking = ranking.Join(gameRanking, w => w.Xuid, mg => mg.Xuid, (w, mg) => w with { InitialPoints = mg.NewPoints })
+        //                     .ToArray();
+        //}
 
-            RankWeekly(ranking, scoresDb, settings.Week + 1);
+        RankWeekly(ranking, scoresDb, settings.Week + 1);
 
-            settings.UpdateForNextWeek(rootDir);
-        }
-        else if(args[0].StartsWith("--monthly"))
-        {
-            var ranking = scoresDb.InitRankingWithLastMonthlyScore()
-                          .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value })
-                          .ToArray();
-
-            if(MonthlyGame(args, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
-            {
-                var gameRanking = RankMonthlyGame(monthlyGame,
-                                                  ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
-                                                  scoresDb);
-
-                ranking = ranking.Join(gameRanking, m => m.Xuid, mg => mg.Xuid, (m, mg) => m with { InitialPoints = mg.NewPoints })
-                                 .ToArray();
-            }
-
-            RankMonthly(ranking, scoresDb);
-        }
+        settings.UpdateForNextWeek(rootDir);
     }
 
-    private static string MonthlyGame(string[] args, ScanSettings settings)
-        => args[0].Length > 9 ? args[0][10..].Trim('\"').ToLower() : settings.MonthlyGame.Trim().ToLower();
+    private static void HandleMonthlyCommand(string pathArg, string gameArg)
+    {
+        var rootDir  = Path.GetFullPath(pathArg);
+        var scoresDb = new ScoresArchive(rootDir);
+        var settings = ScanSettings.Read(rootDir);
+
+        var prevGlobalPoints = scoresDb.GetPreviousGlobalPoints();
+
+        var ranking = scoresDb.InitRankingWithLastMonthlyScore()
+                              .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value })
+                              .ToArray();
+
+        if(MonthlyGame(gameArg, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
+        {
+            var gameRanking = RankMonthlyGame(monthlyGame,
+                                              ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
+                                              scoresDb);
+
+            ranking = ranking.Join(gameRanking, m => m.Xuid, mg => mg.Xuid, (m, mg) => m with { InitialPoints = mg.NewPoints })
+                             .ToArray();
+        }
+
+        RankMonthly(ranking, scoresDb);
+    }
+
+    private static string MonthlyGame(string gameOption, ScanSettings settings)
+        => !string.IsNullOrWhiteSpace(gameOption) ? gameOption.Trim('\"').ToLower() : settings.MonthlyGame.Trim().ToLower();
 
     private static IEnumerable<Ranking> RankWeekly(IEnumerable<Ranking> users, ScoresArchive scoresDb, int weekNr)
     {

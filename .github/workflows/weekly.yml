@@ -26,7 +26,7 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Generate weekly leaderboard
-      run: dotnet run --configuration Release --weekly ./docs/scores
+      run: dotnet run --configuration Release weekly ./docs/scores
     - name: checkin new stats
       uses: EndBug/add-and-commit@v7
       with:
