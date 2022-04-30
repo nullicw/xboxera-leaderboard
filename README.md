@@ -8,13 +8,9 @@ see https://www.trueachievements.com/leaderboard.aspx?leaderboardid=8223
 
 ## How do ranking and points work?
 
-The ten best achievement hunters in the week will be awarded points based on their position. Whoever earns the most gamerscore during the week will gain 10 points, the second place will gain 9 points, and so on. Then the Ranking will reset again and a new week will begin. If two or more users have the same gamerscore gains in one week they get the same place and points.
+Distribution of points for weekly and monthly ranking and for the featured monthly game work all the same. The 25 best achievement hunters in the specific time frame will be awarded points based on their position. Whoever earns the most gamerscore will gain 50 points, the second place will gain 48 points, and so on. Everybody with at least 1 gamerscore gain will also get 1 point. If two or more users have the same gamerscore gains they get the same place and points.
 
 The weekly tracking will happen around 06:20AM on Monday UTC and cover the last 7 days.
-
-Whoever had the most Gamerscore in the featured monthly game earns 100 points. If two or more people happen to share the same amount of Gamerscore in said game, they will all get the 100 points.
-
-The ten best hunters in the month will also be awarded points based on their position. Whoever earns the most gamerscore during the month will gain 100 points, the second place will gain 90 points, and so on. Then the ranking will reset again and a new month will begin. If two or more users have the same gamerscore gains in the last week they get the same place and points.
 
 ## Usage
 
