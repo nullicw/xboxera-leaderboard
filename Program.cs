@@ -61,15 +61,15 @@ public class Program
                                 .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value, NewPoints = 0 })
                                 .ToArray();
 
-        if(MonthlyGame(gameArg, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
-        {
-            var gameRanking = RankMonthlyGame(monthlyGame,
-                                              ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
-                                              scoresDb);
+        //if(MonthlyGame(gameArg, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
+        //{
+        //    var gameRanking = RankMonthlyGame(monthlyGame,
+        //                                      ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
+        //                                      scoresDb);
 
-            ranking = ranking.Join(gameRanking, w => w.Xuid, mg => mg.Xuid, (w, mg) => w with { InitialPoints = mg.NewPoints })
-                             .ToArray();
-        }
+        //    ranking = ranking.Join(gameRanking, w => w.Xuid, mg => mg.Xuid, (w, mg) => w with { InitialPoints = mg.NewPoints })
+        //                     .ToArray();
+        //}
 
         RankWeekly(ranking, scoresDb, settings.Week + 1);
 
