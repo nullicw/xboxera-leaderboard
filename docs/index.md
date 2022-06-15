@@ -22,6 +22,19 @@
   {% endfor %}
 </ul>
 
+# Seasonal stats
+
+{% assign sorted-seasonal-posts = site.tags.seasonal | sort: 'post_date' %}
+
+<ul>
+  {% for post in sorted-seasonal-posts %}
+      <li>
+        <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
+      </li>
+  {% endfor %}
+</ul>
+
+
 # Instructions for manual run
 
 1. clone the repository
