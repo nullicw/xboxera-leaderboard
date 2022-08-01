@@ -2,7 +2,7 @@
 layout: post
 tags: monthly
 title: "Game powerwash simulator for 2022-07" 
-date: 2022-08-01 07:06:20 (UTC)
+date: 2022-08-01 08:02:01 (UTC)
 ---
 
 # Excel
@@ -19,7 +19,7 @@ date: 2022-08-01 07:06:20 (UTC)
 |3.|@Bugalugs214|bugalugs214|0|950|950|46|
 |4.|@Mort|Mortaigne|0|900|900|44|
 |5.|@judge|judge|0|620|620|42|
-|6.|@BrigadiersBlue|Brigadiers Blue|0|420|420|40|
+|6.|@BrigadiersBlue|Brigadiers Blue|0|450|450|40|
 |7.|@PhantomFox|PhantomFox75|0|350|350|38|
 |8.|@profjjj|profjjj|0|290|290|36|
 |9.|@APOPHIS1989|APOPHIS1989|0|70|70|34|
@@ -71,57 +71,57 @@ date: 2022-08-01 07:06:20 (UTC)
 
 |#|User|Gamertag|Points|
 | --- | --- | --- | --- |
-|1.|ShadowlessEdge|Shadowless Edge|1479|
-|2.|KARMAgoesHARD|KARMAgoesHARD|1471|
-|3.|APOPHIS1989|APOPHIS1989|1227|
-|4.|Chyld989|Chyld989|1185|
-|5.|Bugalugs214|bugalugs214|1053|
-|6.|MasterLeePhD|Master Lee PhD|994|
-|7.|Plagueborne|The Wicked Soul|988|
-|8.|Zonky|Zonky|951|
-|9.|SheepDip|Ryuukishi634|943|
-|10.|BrigadiersBlue|Brigadiers Blue|901|
-|11.|UnveiledArk|UnveiledArk|900|
-|12.|NierlyCrazy|Nierly Crazy|871|
-|13.|FairyEmpire|baboy1337|859|
-|14.|judge|judge|857|
-|15.|CallMeCraig|matsze|834|
-|16.|Scottish_Sin|Scottish Sin|746|
-|17.|Cyime|Cyime|726|
-|18.|Mort|Mortaigne|613|
-|19.|Akosii|Akosii|596|
-|20.|binarymelon|binarymelon|560|
-|21.|brunopcosta1|brunopcosta1|549|
-|22.|DeusJabu|DeusJabu|544|
-|23.|profjjj|profjjj|528|
-|24.|Shadowgasm|Shadowgasm|496|
-|25.|n0tjack|n0tjack|473|
-|26.|BeardoN7x|BeardoA7x|469|
-|27.|Knottian|Knottian|383|
-|28.|supercommodore|supercommodore|325|
-|29.|FunkyOne|Sir Funkified|309|
-|30.|dscharles|dscharles|305|
-|31.|low187|ShadowArceus5|288|
-|32.|BadMoodJones|Junglee91|272|
-|33.|Bluehawk357|BlueHawk357|260|
-|34.|Mark3|Mark 3|252|
-|35.|Running_Riot|BoutTreeFidy|248|
-|36.|Sikamikanico|Sikamikanico|231|
-|37.|PhantomFox|PhantomFox75|227|
-|38.|MrZweistein|MrZweistein|209|
-|39.|RoslindaleOne|RoslindaleOne|208|
-|40.|BananaBox39|MaidenLOKO|187|
-|41.|Kreten|Cro Kreten|172|
-|42.|TheSlickTony|TheSlickTony|167|
-|43.|OneBadMutha|OneBadMutha|132|
-|44.|Xumbrega|ctZz1|100|
-|45.|BigM_Milk4|BigMMilk-9208|99|
-|46.|michael|Rngesus37|85|
-|47.|dfunktjester|dFunkt jestEr|72|
-|48.|TheSego|The Sego|71|
-|49.|xJavontax|xJavontax|51|
-|50.|MMarfil|MMarfil|42|
-|51.|Darthvader2795|Darthvader2795|2|
-|51.|Foorbits|Foorbits|2|
-|53.|DannySuperb|Danny Superb|0|
+|1.|Bugalugs214|bugalugs214|196|
+|2.|Shadowgasm|Shadowgasm|154|
+|3.|ShadowlessEdge|Shadowless Edge|148|
+|4.|APOPHIS1989|APOPHIS1989|144|
+|5.|n0tjack|n0tjack|134|
+|6.|Plagueborne|The Wicked Soul|132|
+|7.|judge|judge|119|
+|8.|BrigadiersBlue|Brigadiers Blue|112|
+|9.|CallMeCraig|matsze|110|
+|10.|Scottish_Sin|Scottish Sin|96|
+|11.|Mort|Mortaigne|90|
+|11.|Akosii|Akosii|90|
+|13.|NierlyCrazy|Nierly Crazy|82|
+|13.|Zonky|Zonky|82|
+|15.|profjjj|profjjj|75|
+|16.|MasterLeePhD|Master Lee PhD|72|
+|17.|FairyEmpire|baboy1337|70|
+|18.|Sikamikanico|Sikamikanico|69|
+|19.|SheepDip|Ryuukishi634|68|
+|20.|TheSlickTony|TheSlickTony|66|
+|21.|Chyld989|Chyld989|61|
+|21.|KARMAgoesHARD|KARMAgoesHARD|61|
+|23.|PhantomFox|PhantomFox75|58|
+|24.|Cyime|Cyime|53|
+|25.|dscharles|dscharles|43|
+|26.|Knottian|Knottian|40|
+|27.|BadMoodJones|Junglee91|33|
+|28.|xJavontax|xJavontax|30|
+|29.|DeusJabu|DeusJabu|28|
+|30.|binarymelon|binarymelon|27|
+|31.|FunkyOne|Sir Funkified|26|
+|32.|UnveiledArk|UnveiledArk|20|
+|33.|OneBadMutha|OneBadMutha|6|
+|33.|Kreten|Cro Kreten|6|
+|35.|Bluehawk357|BlueHawk357|3|
+|35.|low187|ShadowArceus5|3|
+|35.|RoslindaleOne|RoslindaleOne|3|
+|35.|BananaBox39|MaidenLOKO|3|
+|35.|Mark3|Mark 3|3|
+|35.|supercommodore|supercommodore|3|
+|35.|Running_Riot|BoutTreeFidy|3|
+|42.|MrZweistein|MrZweistein|2|
+|42.|MMarfil|MMarfil|2|
+|42.|michael|Rngesus37|2|
+|42.|TheSego|The Sego|2|
+|42.|brunopcosta1|brunopcosta1|2|
+|47.|BigM_Milk4|BigMMilk-9208|1|
+|47.|dfunktjester|dFunkt jestEr|1|
+|49.|BeardoN7x|BeardoA7x|0|
+|49.|Xumbrega|ctZz1|0|
+|49.|Darthvader2795|Darthvader2795|0|
+|49.|Foorbits|Foorbits|0|
+|49.|DannySuperb|Danny Superb|0|
 ```
