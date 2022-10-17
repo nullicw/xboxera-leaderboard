@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         ref: ${{ github.head_ref }}
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '6.0'
         include-prerelease: True
@@ -28,6 +28,6 @@ jobs:
     - name: Generate weekly leaderboard
       run: dotnet run --configuration Release weekly ./docs/scores
     - name: checkin new stats
-      uses: EndBug/add-and-commit@v7
+      uses: EndBug/add-and-commit@v9
       with:
         message: 'weekly run'

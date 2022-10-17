@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         ref: main
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '6.0'
         include-prerelease: True
@@ -33,6 +33,6 @@ jobs:
     - name: Generate monthly leaderboard
       run: dotnet run --configuration Release monthly ${{ github.event.inputs.game }} ./docs/scores
     - name: Checkin new stats
-      uses: EndBug/add-and-commit@v7
+      uses: EndBug/add-and-commit@v9
       with:
         message: 'monthly run'
