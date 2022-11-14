@@ -10,4 +10,6 @@
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta3.22114.1" />
   </ItemGroup>
 
+  <ProjectExtensions><VisualStudio><UserProperties docs_4scores_4scansettings_1json__JsonSchema="https://appliedengdesign.github.io/cnccodes-json-schema/draft/2022-07/schema" /></VisualStudio></ProjectExtensions>
+
 </Project>
