@@ -12,11 +12,11 @@ internal class GithubPagesWriter
 {
     private static readonly string[] DiscoursePeriodHeader  = new string[] {
                                                                   "|#|User|Gamertag|Initial GS|Final GS|Gains|Points|",
-                                                                  "| --- | --- | --- | --- | --- | --- | --- |"
+                                                                  "| ---: | --- | --- | ---: | ---: | ---: | ---: |"
                                                               };
     private static readonly string[] DiscourseSummaryHeader  = new string[] {
                                                                    "|#|User|Gamertag|Points|",
-                                                                   "| --- | --- | --- | --- |"
+                                                                   "| ---: | --- | --- | ---: |"
                                                                };
 
     protected string RootDir { get; private set; }
