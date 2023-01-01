@@ -26,13 +26,12 @@ internal class OpenXblApi
     /// for parsing the open XBL api JSON response and local JSON Files
     /// </summary>
     internal record OpenXblSettings(string Id, string Value);
-    internal record OpenXblTitle(long TitleId, string Name);
-    internal record OpenXblAchievement(string ProgressState, OpenXblReward[] Rewards);
-    internal record OpenXblReward(int Value);
+    internal record OpenXblTitle(long TitleId, string Name, OpenXblAchievement Achievement);
+    internal record OpenXblAchievement(long CurrentAchievements, long CurrentGamerscore);
 
     private const int MaxHttpRetries = 3;
 
-    private const string OpenXblPlayerStats = "https://xbl.io/api/v2/account";
+    private const string OpenXblPlayerStats  = "https://xbl.io/api/v2/account";
     private const string OpenXblPlayerTitles = "https://xbl.io/api/v2/achievements/player";
 
     /// <summary>
@@ -88,6 +87,11 @@ internal class OpenXblApi
         //     "titleId": "1997023214",
         //     "name": "FINAL FANTASY IX",
         //     "type": "Game"
+        //     "achievement": {
+        //       "currentAchievements": 17,
+        //       "totalAchievements": 0,
+        //       "currentGamerscore": 435,
+        //       "totalGamerscore": 1000,
         //     }, {
         //     ...
 
@@ -99,25 +103,24 @@ internal class OpenXblApi
 
     public static int GetGamerscoreForTitle(long xuid, long titleId)
     {
-        // calls open XBL api to sum all gamerscores of a user for gameTitleId
+        // calls open XBL api to get the gamerscore for a title-ID
+        // searches all games all users have played till the first match is found
         //
         // response JSON looks like
         // {
-        // "achievements": [
+        //   "xuid": "2533274817036922",
+        //   "titles": [
         //   {
-        //     "id": "1",
-        //     "name": "Welcome to Britain",
-        //     "progressState": "Achieved",
-        //     "rewards": [
-        //       {
-        //         "value": "10",
-        //         "type": "Gamerscore",
-        //       }, ...
+        //     "titleId": "1997023214",
+        //     "name": "FINAL FANTASY IX",
+        //     "type": "Game"
+        //     }, {
+        //     ...
 
-        return CallOpenXblApi($"{OpenXblPlayerTitles}/{xuid}/title/{titleId}",
-                              j => j["achievements"].Select(a => a.ToObject<OpenXblAchievement>()))
-               .Where(a => a.ProgressState == "Achieved")
-               .Sum(a => a.Rewards.First().Value);
+        var chievosForTitle = CallOpenXblApi($"{OpenXblPlayerTitles}/{xuid}",
+                                             j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
+                              .FirstOrDefault(t => t.TitleId == titleId);
+        return (int)(chievosForTitle?.Achievement.CurrentGamerscore ?? 0);
     }
 
     /// <summary>

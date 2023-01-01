@@ -35,7 +35,7 @@ internal class ScoresArchive
     }
 
     /// <summary>
-    /// returns a dictionary mapping XUID to their global leaderboard points.
+    /// returns a dictionary mapping XUID to their max global leaderboard points in the last directory with scores.
     /// </summary>
     public IDictionary<long, int> GetPreviousGlobalPoints()
     {
