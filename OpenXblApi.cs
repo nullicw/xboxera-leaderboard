@@ -18,6 +18,8 @@ namespace XboxeraLeaderboard;
 /// long time for retrieving all information (couple minutes for 50 users).
 /// 
 /// get xuids for gamertag: https://www.cxkes.me/xbox/xuid
+/// (if a gamertag is non unique and in the form of abc#824, then enter abc824 on this website)
+/// 
 /// how to use openXBL api https://xbl.io/getting-started
 /// </remarks>
 internal class OpenXblApi
