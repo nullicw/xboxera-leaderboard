@@ -58,12 +58,12 @@ public class Program
         var prevGlobalPoints = scoresDb.GetPreviousGlobalPoints();
 
         var ranking = scoresDb.InitRankingWithLastWeeklyScore(settings.Week)
-                                .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value, NewPoints = 0 })
-                                .ToArray();
+                              .Join(prevGlobalPoints, w => w.Xuid, m => m.Key, (r, gp) => r with { InitialPoints = gp.Value, NewPoints = 0 })
+                              .ToArray();
 
-        if(MonthlyGame(gameArg, settings) is var monthlyGame && !string.IsNullOrWhiteSpace(monthlyGame))
+        if(!string.IsNullOrWhiteSpace(settings.WeeklyGame))
         {
-            var gameRanking = RankMonthlyGame(monthlyGame,
+            var gameRanking = RankMonthlyGame(settings.WeeklyGame.Trim().ToLower(),
                                               ranking.Select(u => u with { InitialGs = 0, Points = 0 }).ToArray(),
                                               scoresDb);
 

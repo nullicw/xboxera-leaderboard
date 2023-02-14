@@ -5,7 +5,7 @@ using System.IO;
 
 namespace XboxeraLeaderboard;
 
-internal record ScanSettings(int Week, string Date, string MonthlyGame)
+internal record ScanSettings(int Week, string Date, string MonthlyGame, string WeeklyGame)
 {
     private const string StatsFilename = "scansettings.json";
 
