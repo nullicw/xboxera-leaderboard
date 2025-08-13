@@ -26,6 +26,8 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Generate weekly leaderboard
+      env:
+        OPENXBLAPI_KEY: ${{ secrets.OPENXBLAPI_KEY }}
       run: dotnet run --configuration Release weekly ./docs/scores
     - name: checkin new stats
       uses: EndBug/add-and-commit@v9

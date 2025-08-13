@@ -31,6 +31,8 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Generate monthly leaderboard
+      env:
+        OPENXBLAPI_KEY: ${{ secrets.OPENXBLAPI_KEY }}
       run: dotnet run --configuration Release monthly ${{ github.event.inputs.game }} ./docs/scores
     - name: Checkin new stats
       uses: EndBug/add-and-commit@v9

@@ -40,17 +40,25 @@ internal class OpenXblApi
     /// the API key for openXBL needed to call their REST services (a new can be generated on their
     /// site on demand at no cost)
     /// </summary>
-    private const string OpenXBLKey = "skooks048gw80ks0co8wk4ow0k0ggksoks8";
+    private string OpenXBLKey { get; init; }
 
     /// <summary>
+    /// Init with secret key for OpenXbl API
+    /// </summary>
+    public OpenXblApi(string openXblKey)
+    {
+        this.OpenXBLKey = openXblKey;
+    }
+
+    /// <summary>^11
     /// Returns the complete account information for a single user profile in JSON format.
     /// </summary>
-    public static string DumpAccountInfo(long xuid)
+    public string DumpAccountInfo(long xuid)
     {
         return CallOpenXblApi($"{OpenXblPlayerStats}/{xuid}", (json) => json.ToString());
     }
 
-    public static int GetCurrentGamerScore(long xuid)
+    public int GetCurrentGamerScore(long xuid)
     {
         // calls open XBL api to get the gamerscore for a Xbox User Id(XUID)
         //
@@ -76,7 +84,7 @@ internal class OpenXblApi
                                              .First(s => s.Id == "Gamerscore").Value));
     }
 
-    public static long? GetTitleId(long xuid, string gameName)
+    public long? GetTitleId(long xuid, string gameName)
     {
         // calls open XBL api to get the title-ID for all games a user has played
         // searches all games all users have played till the first match is found
@@ -103,7 +111,7 @@ internal class OpenXblApi
                ?.TitleId;
     }
 
-    public static int GetGamerscoreForTitle(long xuid, long titleId)
+    public int GetGamerscoreForTitle(long xuid, long titleId)
     {
         // calls open XBL api to get the gamerscore for a title-ID
         // searches all games all users have played till the first match is found
@@ -128,7 +136,7 @@ internal class OpenXblApi
     /// <summary>
     /// calls open XBL api rest service and parse Json result
     /// </summary>
-    private static T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
+    private T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
     {
         Console.ForegroundColor = ConsoleColor.White;
         Console.Write($"calling open XBL api for {openXblUrl} .... ");
