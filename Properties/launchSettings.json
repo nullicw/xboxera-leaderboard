@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "XboxeraLeaderboard": {
-      "commandName": "Project",
-      "commandLineArgs": "weekly ../../../docs/scores"
-    }
-  }
-}
