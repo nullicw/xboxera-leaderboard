@@ -29,7 +29,7 @@ internal class OpenXblApi
     /// </summary>
     internal record OpenXblSettings(string Id, string Value);
     internal record OpenXblTitle(long TitleId, string Name, OpenXblAchievement Achievement);
-    internal record OpenXblAchievement(long CurrentAchievements, long CurrentGamerscore);
+    internal record OpenXblAchievement(long CurrentGamerscore);
 
     private const int MaxHttpRetries = 3;
 
@@ -79,7 +79,7 @@ internal class OpenXblApi
         //         }, ...
 
         return CallOpenXblApi($"{OpenXblPlayerStats}/{xuid}",
-                              j => int.Parse(j["profileUsers"].First()["settings"].Children()
+                              j => int.Parse(j["content"]["profileUsers"].First()["settings"].Children()
                                              .Select(s => s.ToObject<OpenXblSettings>())
                                              .First(s => s.Id == "Gamerscore").Value));
     }
@@ -106,7 +106,7 @@ internal class OpenXblApi
         //     ...
 
         return CallOpenXblApi($"{OpenXblPlayerTitles}/{xuid}",
-                              j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
+                              j => j["content"]["titles"].Select(t => t.ToObject<OpenXblTitle>()))
                .FirstOrDefault(t => t.Name.ToLower() == gameName)
                ?.TitleId;
     }
@@ -128,7 +128,7 @@ internal class OpenXblApi
         //     ...
 
         var chievosForTitle = CallOpenXblApi($"{OpenXblPlayerTitles}/{xuid}",
-                                             j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
+                                             j => j["content"]["titles"].Select(t => t.ToObject<OpenXblTitle>()))
                               .FirstOrDefault(t => t.TitleId == titleId);
         return (int)(chievosForTitle?.Achievement.CurrentGamerscore ?? 0);
     }
