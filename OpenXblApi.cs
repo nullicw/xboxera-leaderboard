@@ -33,8 +33,8 @@ internal class OpenXblApi
 
     private const int MaxHttpRetries = 3;
 
-    private const string OpenXblPlayerStats  = "https://xbl.io/api/v2/account";
-    private const string OpenXblPlayerTitles = "https://xbl.io/api/v2/achievements/player";
+    private const string OpenXblPlayerStats  = "https://api.xbl.io/v2/account";
+    private const string OpenXblPlayerTitles = "https://api.xbl.io/v2/achievements/player";
 
     /// <summary>
     /// the API key for openXBL needed to call their REST services (a new can be generated on their
