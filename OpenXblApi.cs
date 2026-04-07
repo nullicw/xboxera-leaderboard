@@ -165,7 +165,7 @@ internal class OpenXblApi
                     var result = parse(JObject.Parse(json));
 
                     // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    System.Threading.Thread.Sleep(5000);
+                    System.Threading.Thread.Sleep(10000);
 
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("OK");
@@ -182,10 +182,10 @@ internal class OpenXblApi
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"error = {exc.Message}, response = '{json}'");
-            }
 
-            // request probably failed because open XBL limited the request rate, so give it some time
-            System.Threading.Thread.Sleep(10000);
+                // probably a throttling issue with open XBL api or XBL itself so give it some time to recover (6 minutes)
+                System.Threading.Thread.Sleep(360000);
+            }
         }
         while(retries++ < MaxHttpRetries);
 
