@@ -164,8 +164,9 @@ internal class OpenXblApi
                     json = response.Content.ReadAsStringAsync().Result;
                     var result = parse(JObject.Parse(json));
 
-                    // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    System.Threading.Thread.Sleep(10000);
+                    // open XBL api only allows x requests per y seconds, so give it some time
+                    // or the query will be rejected by the server
+                    System.Threading.Thread.Sleep(15000);
 
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("OK");
