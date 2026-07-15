@@ -29,28 +29,36 @@ internal class OpenXblApi
     /// </summary>
     internal record OpenXblSettings(string Id, string Value);
     internal record OpenXblTitle(long TitleId, string Name, OpenXblAchievement Achievement);
-    internal record OpenXblAchievement(long CurrentAchievements, long CurrentGamerscore);
+    internal record OpenXblAchievement(long CurrentGamerscore);
 
     private const int MaxHttpRetries = 3;
 
-    private const string OpenXblPlayerStats  = "https://xbl.io/api/v2/account";
-    private const string OpenXblPlayerTitles = "https://xbl.io/api/v2/achievements/player";
+    private const string OpenXblPlayerStats  = "https://api.xbl.io/v2/account";
+    private const string OpenXblPlayerTitles = "https://api.xbl.io/v2/achievements/player";
 
     /// <summary>
     /// the API key for openXBL needed to call their REST services (a new can be generated on their
     /// site on demand at no cost)
     /// </summary>
-    private const string OpenXBLKey = "skooks048gw80ks0co8wk4ow0k0ggksoks8";
+    private string OpenXBLKey { get; init; }
 
     /// <summary>
+    /// Init with secret key for OpenXbl API
+    /// </summary>
+    public OpenXblApi(string openXblKey)
+    {
+        this.OpenXBLKey = openXblKey;
+    }
+
+    /// <summary>^11
     /// Returns the complete account information for a single user profile in JSON format.
     /// </summary>
-    public static string DumpAccountInfo(long xuid)
+    public string DumpAccountInfo(long xuid)
     {
         return CallOpenXblApi($"{OpenXblPlayerStats}/{xuid}", (json) => json.ToString());
     }
 
-    public static int GetCurrentGamerScore(long xuid)
+    public int GetCurrentGamerScore(long xuid)
     {
         // calls open XBL api to get the gamerscore for a Xbox User Id(XUID)
         //
@@ -71,12 +79,12 @@ internal class OpenXblApi
         //         }, ...
 
         return CallOpenXblApi($"{OpenXblPlayerStats}/{xuid}",
-                              j => int.Parse(j["profileUsers"].First()["settings"].Children()
+                              j => int.Parse(j["content"]["profileUsers"].First()["settings"].Children()
                                              .Select(s => s.ToObject<OpenXblSettings>())
                                              .First(s => s.Id == "Gamerscore").Value));
     }
 
-    public static long? GetTitleId(long xuid, string gameName)
+    public long? GetTitleId(long xuid, string gameName)
     {
         // calls open XBL api to get the title-ID for all games a user has played
         // searches all games all users have played till the first match is found
@@ -98,12 +106,12 @@ internal class OpenXblApi
         //     ...
 
         return CallOpenXblApi($"{OpenXblPlayerTitles}/{xuid}",
-                              j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
+                              j => j["content"]["titles"].Select(t => t.ToObject<OpenXblTitle>()))
                .FirstOrDefault(t => t.Name.ToLower() == gameName)
                ?.TitleId;
     }
 
-    public static int GetGamerscoreForTitle(long xuid, long titleId)
+    public int GetGamerscoreForTitle(long xuid, long titleId)
     {
         // calls open XBL api to get the gamerscore for a title-ID
         // searches all games all users have played till the first match is found
@@ -120,7 +128,7 @@ internal class OpenXblApi
         //     ...
 
         var chievosForTitle = CallOpenXblApi($"{OpenXblPlayerTitles}/{xuid}",
-                                             j => j["titles"].Select(t => t.ToObject<OpenXblTitle>()))
+                                             j => j["content"]["titles"].Select(t => t.ToObject<OpenXblTitle>()))
                               .FirstOrDefault(t => t.TitleId == titleId);
         return (int)(chievosForTitle?.Achievement.CurrentGamerscore ?? 0);
     }
@@ -128,7 +136,7 @@ internal class OpenXblApi
     /// <summary>
     /// calls open XBL api rest service and parse Json result
     /// </summary>
-    private static T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
+    private T CallOpenXblApi<T>(string openXblUrl, Func<JObject, T> parse)
     {
         Console.ForegroundColor = ConsoleColor.White;
         Console.Write($"calling open XBL api for {openXblUrl} .... ");
@@ -156,8 +164,9 @@ internal class OpenXblApi
                     json = response.Content.ReadAsStringAsync().Result;
                     var result = parse(JObject.Parse(json));
 
-                    // open XBL api only allows 10 requests per 15 seconds, so give it some time
-                    System.Threading.Thread.Sleep(5000);
+                    // open XBL api only allows x requests per y seconds, so give it some time
+                    // or the query will be rejected by the server
+                    System.Threading.Thread.Sleep(15000);
 
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("OK");
@@ -174,10 +183,10 @@ internal class OpenXblApi
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"error = {exc.Message}, response = '{json}'");
-            }
 
-            // request probably failed because open XBL limited the request rate, so give it some time
-            System.Threading.Thread.Sleep(10000);
+                // probably a throttling issue with open XBL api or XBL itself so give it some time to recover (6 minutes)
+                System.Threading.Thread.Sleep(360000);
+            }
         }
         while(retries++ < MaxHttpRetries);
 

@@ -8,6 +8,8 @@ namespace XboxeraLeaderboard;
 
 public class Program
 {
+    private const string OpenXblApiKeyEnvironmentName = "OPENXBLAPI_KEY";
+
     /// <summary>
     /// Takes a list of gamertags in csv format (with their xuid and last weeks gamerscore),
     /// polls the open XBL api for their current gamerscore and outputs the (weekly) leaderboard
@@ -153,14 +155,16 @@ public class Program
         // search for title id and get gamerscores of all users for this title, then
         // rank on gains for the montly game
 
+        var openXblApi = new OpenXblApi(System.Environment.GetEnvironmentVariable(OpenXblApiKeyEnvironmentName));
+
         Console.WriteLine($"searching for any user who played '{gameName}' to get its Xbox Title-ID");
 
-        var gameTitleId = users.Select(u => OpenXblApi.GetTitleId(u.Xuid, gameName))
+        var gameTitleId = users.Select(u => openXblApi.GetTitleId(u.Xuid, gameName))
                                .First(t => t.HasValue).Value;
 
         Console.WriteLine($"get gamerscores of title {gameTitleId} for all users");
 
-        IEnumerable<Ranking> gamerscoresForTitle = users.Select(u => u with { Gains = OpenXblApi.GetGamerscoreForTitle(u.Xuid, gameTitleId) })
+        IEnumerable<Ranking> gamerscoresForTitle = users.Select(u => u with { Gains = openXblApi.GetGamerscoreForTitle(u.Xuid, gameTitleId) })
                                                         .Select(u => u with { FinalGs = u.Gains })
                                                         .ToArray();
 
@@ -182,11 +186,14 @@ public class Program
 
     private static IEnumerable<Ranking> ReadAllNewGamerscores(IEnumerable<Ranking> users)
     {
+        var openXblApi = new OpenXblApi(System.Environment.GetEnvironmentVariable(OpenXblApiKeyEnvironmentName));
+
         Console.WriteLine($"get current gamerscore for all users");
 
-        return users.Select(u => u with { FinalGs = OpenXblApi.GetCurrentGamerScore(u.Xuid)})
+        return users.Select(u => u with { FinalGs = openXblApi.GetCurrentGamerScore(u.Xuid)})
                     .Select(u => u with { Gains = Gains(u.InitialGs, u.FinalGs) })
                     .ToArray();
     }
+
     private static int Gains(int gamerscoreBefore, int gamerscoreNow) => Math.Max(0, gamerscoreNow - gamerscoreBefore);
 }

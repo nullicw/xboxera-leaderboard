@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: '6.x'
+        dotnet-version: '10.x'
         dotnet-quality: 'preview'
     - name: Restore dependencies
       run: dotnet restore
@@ -25,7 +25,7 @@ jobs:
     - name: Publish win-x86
       run: dotnet publish --configuration Release --framework net6.0 --output ./publish --runtime win-x86 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:TrimMode=Link -p:IncludeNativeLibrariesForSelfExtract=true
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with: 
         name: xboxera-leaderboard-win-x86
         path: ./publish
